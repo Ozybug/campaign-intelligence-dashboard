@@ -42,14 +42,20 @@ function MetricCard({ label, value, icon, color }: { label: string; value: strin
   );
 }
 
-function FilterBadge({ filter, negate }: { filter: SegmentFilter; negate?: boolean }) {
+function FilterBadge({ filter, isExcluded }: { filter: SegmentFilter; isExcluded?: boolean }) {
+  // Use rose styling for excluded-list filters; only show "NOT" when negate=true on the filter itself
+  const negative = isExcluded || filter.negate;
+  const showNot = filter.negate === true;
+
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border ${
-        negate ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-violet-50 text-violet-700 border-violet-200'
+        negative
+          ? 'bg-rose-50 text-rose-700 border-rose-200'
+          : 'bg-violet-50 text-violet-700 border-violet-200'
       }`}
     >
-      {negate && <span className="font-bold text-rose-500">NOT</span>}
+      {showNot && <span className="font-bold text-rose-500">NOT</span>}
       <span className="font-semibold">{filter.name}</span>
       {filter.operator && <span className="text-slate-400">{filter.operator}</span>}
       {filter.value !== undefined && filter.value !== '' && (
@@ -69,7 +75,7 @@ function parseCampaignInfo(data: any): CampaignInfo {
   const segmentName = seg?.segment_name || data?.segment_name;
 
   const mapFilter = (f: any): SegmentFilter => ({
-    name: f?.attribute_name || f?.name || f?.event_name || 'Filter',
+    name: f?.attribute_name || f?.segment_name || f?.name || f?.event_name || 'Filter',
     operator: f?.operator || f?.filter_operator,
     value: f?.attribute_value ?? f?.value,
     category: f?.category || f?.filter_type,
@@ -141,11 +147,11 @@ export default function CampaignDetails({ campaign }: Props) {
 
   const resolvedTarget = campaignInfo?.targetAudience || ep.targetAudience || 'Segmented Users';
   const isAllUsers = resolvedTarget === 'All Users';
+
   const includedFilters: SegmentFilter[] = campaignInfo?.includedFilters ?? ep.includedFilters ?? [];
   const excludedFilters: SegmentFilter[] = campaignInfo?.excludedFilters ?? ep.excludedFilters ?? [];
   const hasFilters = includedFilters.length > 0 || excludedFilters.length > 0;
 
-  // Determine whether there's anything worth showing in the metrics section
   const hasMetrics = metrics !== null && !statsError;
 
   return (
@@ -199,26 +205,29 @@ export default function CampaignDetails({ campaign }: Props) {
             <span className="text-lg">{isAllUsers ? '🌐' : '🎯'}</span>
             <span className="text-violet-800 font-semibold text-sm">{resolvedTarget}</span>
           </div>
+
           {includedFilters.length > 0 && (
             <div className="mt-2">
               <p className="text-violet-400 text-xs mb-1.5 font-medium">Include filters</p>
               <div className="flex flex-wrap gap-1.5">
                 {includedFilters.map((f, i) => (
-                  <FilterBadge key={i} filter={f} negate={f.negate} />
+                  <FilterBadge key={i} filter={f} />
                 ))}
               </div>
             </div>
           )}
+
           {excludedFilters.length > 0 && (
             <div className="mt-2">
               <p className="text-rose-400 text-xs mb-1.5 font-medium">Exclude filters</p>
               <div className="flex flex-wrap gap-1.5">
                 {excludedFilters.map((f, i) => (
-                  <FilterBadge key={i} filter={f} negate />
+                  <FilterBadge key={i} filter={f} isExcluded />
                 ))}
               </div>
             </div>
           )}
+
           {!hasFilters && !isAllUsers && (
             <p className="text-violet-300 text-xs mt-1">No filter details available</p>
           )}
@@ -239,8 +248,7 @@ export default function CampaignDetails({ campaign }: Props) {
             Performance Metrics
           </h3>
           <p className="text-xs text-violet-300 mb-3 flex items-center gap-1">
-            <span>📊</span>
-            Campaign performance stats · Attribution:{' '}
+            <span>📊</span> Campaign performance stats · Attribution:{' '}
             <span className="font-semibold text-violet-400">Click-through</span>
           </p>
           <div className="grid grid-cols-2 gap-3">
