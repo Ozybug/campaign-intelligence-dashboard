@@ -13,16 +13,37 @@ function getAuthHeader(): string {
 }
 
 // Extract segment filters from MoEngage segmentation_details
+// MoEngage returns included_filters / excluded_filters as:
+//   { filter_operator: "and", filters: [ { name, operator, value, category, data_type, negate, ... } ] }
+// OR as segment references: [ { segment_name, segment_id, ... } ]
 function extractFilters(filterObj: any): SegmentFilter[] {
-  if (!filterObj || !Array.isArray(filterObj.filters)) return [];
-  return filterObj.filters.map((f: any): SegmentFilter => ({
-    name: f.name || f.attribute || 'unknown',
-    operator: f.operator || f.condition,
-    value: f.value,
-    category: f.category || f.filter_type,
-    data_type: f.data_type,
-    negate: f.negate === true,
-  }));
+  if (!filterObj) return [];
+
+  // Standard format: object with a "filters" array
+  if (filterObj && Array.isArray(filterObj.filters)) {
+    return filterObj.filters.map((f: any): SegmentFilter => ({
+      name: f.name || f.attribute || f.event_name || f.attribute_name || 'Filter',
+      operator: f.operator || f.condition,
+      value: f.value,
+      category: f.category || f.filter_type,
+      data_type: f.data_type,
+      negate: f.negate === true,
+    }));
+  }
+
+  // Segment reference format: array of segment objects
+  if (Array.isArray(filterObj)) {
+    return filterObj.map((f: any): SegmentFilter => ({
+      name: f.segment_name || f.name || f.attribute || f.event_name || 'Segment',
+      operator: f.operator || f.condition,
+      value: f.value,
+      category: f.category || f.filter_type || 'segment',
+      data_type: f.data_type,
+      negate: f.negate === true,
+    }));
+  }
+
+  return [];
 }
 
 // Fetch campaigns for a given channel using the correct MoEngage Campaign API
@@ -42,6 +63,7 @@ async function fetchCampaignsByChannel(channel: string): Promise<Campaign[]> {
       page,
       request_id: requestId,
     };
+
     try {
       const response = await axios.post(url, body, {
         headers: {
@@ -51,19 +73,21 @@ async function fetchCampaignsByChannel(channel: string): Promise<Campaign[]> {
         },
         timeout: 15000,
       });
+
       const data = response.data;
-      const campaignList: any[] = Array.isArray(data)
-        ? data
-        : (data.campaigns || data.data || data.message || []);
+      const campaignList: any[] = Array.isArray(data) ? data : (data.campaigns || data.data || data.message || []);
+
       if (!Array.isArray(campaignList) || campaignList.length === 0) {
         hasMore = false;
         break;
       }
+
       for (const c of campaignList) {
         const segDet = c.segmentation_details || {};
         const isAllUsers = segDet.is_all_user_campaign === true;
         const includedFilters = extractFilters(segDet.included_filters);
         const excludedFilters = extractFilters(segDet.excluded_filters);
+
         const campaign: Campaign = {
           id: c.campaign_id || c.id || `${channel}_${page}_${Math.random()}`,
           name: c.basic_details?.name || c.name || 'Unnamed Campaign',
@@ -78,6 +102,7 @@ async function fetchCampaignsByChannel(channel: string): Promise<Campaign[]> {
         };
         allCampaigns.push(campaign);
       }
+
       if (campaignList.length < limit) {
         hasMore = false;
       } else {
@@ -89,12 +114,18 @@ async function fetchCampaignsByChannel(channel: string): Promise<Campaign[]> {
       hasMore = false;
     }
   }
+
   return allCampaigns;
 }
 
 function mapChannel(apiChannel: string): Campaign['channel'] {
   const map: Record<string, Campaign['channel']> = {
-    PUSH: 'Push', EMAIL: 'Email', SMS: 'SMS', WHATSAPP: 'WhatsApp', INAPP: 'In-App', WEB: 'Web',
+    PUSH: 'Push',
+    EMAIL: 'Email',
+    SMS: 'SMS',
+    WHATSAPP: 'WhatsApp',
+    INAPP: 'In-App',
+    WEB: 'Web',
   };
   return map[apiChannel.toUpperCase()] || 'Push';
 }
@@ -113,11 +144,7 @@ function mapStatus(apiStatus: string): Campaign['status'] {
 // Mock data used as fallback
 function getMockCampaigns(): Campaign[] {
   const today = new Date();
-  const addDays = (d: Date, n: number) => {
-    const r = new Date(d);
-    r.setDate(r.getDate() + n);
-    return r.toISOString().split('T')[0];
-  };
+  const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r.toISOString().split('T')[0]; };
   return [
     { id: 'mock_1', name: 'Summer Push Blast', channel: 'Push', status: 'Active', startDate: addDays(today, -3), endDate: addDays(today, 4), campaignType: 'ONE_TIME', targetAudience: 'All Users', includedFilters: [], excludedFilters: [] },
     { id: 'mock_2', name: 'Weekly Email Newsletter', channel: 'Email', status: 'Active', startDate: addDays(today, -7), endDate: addDays(today, 7), campaignType: 'PERIODIC', targetAudience: 'Segmented', includedFilters: [{ name: 'u_em', operator: 'exists', category: 'Tracked Standard Attribute', data_type: 'string', negate: false }], excludedFilters: [] },
@@ -132,13 +159,20 @@ export async function fetchMoEngageCampaigns(): Promise<Campaign[]> {
     console.log('[MoEngage] No credentials configured, using mock data');
     return getMockCampaigns();
   }
+
   console.log('[MoEngage] Fetching campaigns from API...');
   const channels = ['PUSH', 'EMAIL', 'SMS', 'INAPP', 'WHATSAPP'];
+
   try {
     const results = await Promise.allSettled(channels.map(ch => fetchCampaignsByChannel(ch)));
     const allCampaigns: Campaign[] = [];
-    for (const result of results) { if (result.status === 'fulfilled') allCampaigns.push(...result.value); }
-    if (allCampaigns.length === 0) { console.warn('[MoEngage] No campaigns, using mock'); return getMockCampaigns(); }
+    for (const result of results) {
+      if (result.status === 'fulfilled') allCampaigns.push(...result.value);
+    }
+    if (allCampaigns.length === 0) {
+      console.warn('[MoEngage] No campaigns, using mock');
+      return getMockCampaigns();
+    }
     return allCampaigns;
   } catch (error) {
     console.error('[MoEngage] Fatal error:', error);
