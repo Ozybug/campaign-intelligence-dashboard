@@ -3,10 +3,12 @@ import axios from 'axios';
 
 const MOENGAGE_APP_ID = process.env.MOENGAGE_APP_ID || '';
 const MOENGAGE_SECRET_KEY = process.env.MOENGAGE_SECRET_KEY || '';
+// Campaign Report API key (for Stats API) — separate from Campaign Management key
+const MOENGAGE_STATS_KEY = process.env.MOENGAGE_API_KEY || process.env.MOENGAGE_SECRET_KEY || '';
 const MOENGAGE_BASE_URL = process.env.MOENGAGE_BASE_URL || 'https://api-03.moengage.com';
 
 function getAuthHeader(): string {
-    const credentials = `${MOENGAGE_APP_ID}:${MOENGAGE_SECRET_KEY}`;
+        const credentials = `${MOENGAGE_APP_ID}:${MOENGAGE_STATS_KEY}`;
     const encoded = Buffer.from(credentials).toString('base64');
     return `Basic ${encoded}`;
 }
@@ -35,7 +37,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ error: 'campaignId is required' }, { status: 400 });
         }
 
-        if (!MOENGAGE_APP_ID || !MOENGAGE_SECRET_KEY) {
+                if (!MOENGAGE_APP_ID || !MOENGAGE_STATS_KEY) {
             return NextResponse.json({
                 campaignId,
                 attribution,
