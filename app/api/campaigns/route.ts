@@ -22,6 +22,13 @@ function normalizeDate(dateStr: string | undefined): string {
   return d.toISOString();
 }
 
+// Extract YYYY-MM-DD from an ISO string using its stored UTC date portion.
+// For ONE_TIME campaigns we use this as the canonical calendar day,
+// which avoids timezone bleed (e.g. 2026-03-04T23:59Z bleeding into Mar 5 in IST).
+function calendarDay(isoStr: string): string {
+  return isoStr.slice(0, 10);
+}
+
 export async function GET() {
   try {
     const campaigns = await fetchMoEngageCampaigns();
@@ -40,16 +47,15 @@ export async function GET() {
       let finalEnd: Date;
 
       if (c.campaignType === 'ONE_TIME' || c.campaignType === 'BROADCAST_LIVE_ACTIVITY') {
-        // One-time campaigns: show on a single day.
-        // If end is same as start (or before), show as a 1-hour pill on the start day.
-        // If end is genuinely a different date, use it.
-        const startDay = start.toISOString().slice(0, 10);
-        const endDay = end.toISOString().slice(0, 10);
+        // One-time: pin the event to its start calendar day.
+        // Compare calendar days (YYYY-MM-DD) rather than UTC timestamps to avoid
+        // timezone bleed where 23:59:59 UTC on day D = day D+1 in UTC+5:30.
+        const startDay = calendarDay(startDate);
+        const endDay = calendarDay(endDate);
 
         if (startDay === endDay || end <= start) {
-          // Same day — cap to end of that day (23:59) so it stays within the day cell
-          finalEnd = new Date(start);
-          finalEnd.setHours(23, 59, 59, 999);
+          // Cap end to the very end of the start calendar day in UTC
+          finalEnd = new Date(startDay + 'T23:59:59.999Z');
         } else {
           finalEnd = end;
         }
