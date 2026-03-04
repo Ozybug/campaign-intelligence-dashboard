@@ -12,10 +12,10 @@ function getAuthHeader(): string {
 }
 
 /**
- * GET /api/campaign-stats?campaignId=<id>&channel=<channel>
+ * GET /api/campaign-stats?campaignId=<id>&start=<YYYY-MM-DD>&end=<YYYY-MM-DD>
  *
- * Fetches campaign performance stats from MoEngage:
- *   GET /v4/campaigns/info/<channel>/<campaignId>?attribution_type=click_through
+ * Fetches campaign performance stats from MoEngage Stats API:
+ *   POST /core-services/v1/campaign-stats
  *
  * Maps ONLY the fields that MoEngage natively shows in its UI:
  *   - attempted      (Attempted)
@@ -24,172 +24,140 @@ function getAuthHeader(): string {
  *   - impressions    (Impressions)
  *   - clicks         (Clicked)
  *   - ctr            (CTR %)
- *
- * No fabricated metrics (delivered, conversions, revenue, conversionRate)
- * are included — those are not shown in the MoEngage campaign analytics UI
- * and would be made-up data.
  */
 export async function GET(req: NextRequest) {
     try {
-          const { searchParams } = new URL(req.url);
-          const campaignId = searchParams.get('campaignId');
-          const channel = (searchParams.get('channel') || 'push').toLowerCase();
-          const attribution = 'click_through';
+        const { searchParams } = new URL(req.url);
+        const campaignId = searchParams.get('campaignId');
+        const attribution = 'CLICK_THROUGH';
 
-      if (!campaignId) {
-              return NextResponse.json({ error: 'campaignId is required' }, { status: 400 });
-      }
+        if (!campaignId) {
+            return NextResponse.json({ error: 'campaignId is required' }, { status: 400 });
+        }
 
-      // If no API credentials configured, return empty stats (no fake data)
-      if (!MOENGAGE_APP_ID || !MOENGAGE_SECRET_KEY) {
-              return NextResponse.json({
-                        campaignId,
-                        attribution,
-                        source: 'no_credentials',
-                        error: 'MoEngage API credentials not configured',
-              });
-      }
+        if (!MOENGAGE_APP_ID || !MOENGAGE_SECRET_KEY) {
+            return NextResponse.json({
+                campaignId,
+                attribution,
+                source: 'no_credentials',
+                error: 'MoEngage API credentials not configured',
+            });
+        }
 
-      const channelPath = mapChannelToPath(channel);
+        const endDate = searchParams.get('end') || new Date().toISOString().slice(0, 10);
+        const startDateParam = searchParams.get('start');
+        let startDate: string;
+        if (startDateParam) {
+            startDate = startDateParam.slice(0, 10);
+        } else {
+            const d = new Date();
+            d.setDate(d.getDate() - 30);
+            startDate = d.toISOString().slice(0, 10);
+        }
 
-      // GET /v4/campaigns/info/{channel}/{campaign_id}?attribution_type=click_through
-      const url = `${MOENGAGE_BASE_URL}/v4/campaigns/info/${channelPath}/${campaignId}`;
+        const url = `${MOENGAGE_BASE_URL}/core-services/v1/campaign-stats`;
+        const requestBody = {
+            request_id: `req_${campaignId}_${Date.now()}`,
+            campaign_ids: [campaignId],
+            start_date: startDate,
+            end_date: endDate,
+            attribution_type: attribution,
+            metric_type: 'TOTAL',
+        };
 
-      const response = await axios.get(url, {
-              params: { attribution_type: attribution },
-              headers: {
-                        'Authorization': getAuthHeader(),
-                        'MOE-APPKEY': MOENGAGE_APP_ID,
-                        'Content-Type': 'application/json',
-              },
-              timeout: 15000,
-      });
+        const response = await axios.post(url, requestBody, {
+            headers: {
+                'Authorization': getAuthHeader(),
+                'MOE-APPKEY': MOENGAGE_APP_ID,
+                'Content-Type': 'application/json',
+            },
+            timeout: 15000,
+        });
 
-      const data = response.data;
-          const stats = parseStats(campaignId, data, attribution);
-
-      return NextResponse.json({
-              ...stats,
-              campaignData: data,
-      });
+        const stats = parseStatsResponse(campaignId, response.data, attribution);
+        return NextResponse.json(stats);
     } catch (error: any) {
-          const status = error?.response?.status;
-          const campaignId = new URL(req.url).searchParams.get('campaignId') || 'unknown';
+        const status = error?.response?.status;
+        const campaignId = new URL(req.url).searchParams.get('campaignId') || 'unknown';
+        console.error('[API/campaign-stats]', error?.response?.data || error?.message);
 
-      console.error('[API/campaign-stats]', error?.response?.data || error?.message);
-
-      // Return an error response — never fall back to fake/mock data
-      return NextResponse.json(
-        {
-                  campaignId,
-                  source: 'error',
-                  error: `MoEngage API returned ${status || 'unknown error'}: ${error?.response?.data?.message || error?.message}`,
-        },
-        { status: status === 404 || status === 422 ? 404 : 500 }
-            );
+        return NextResponse.json(
+            {
+                campaignId,
+                source: 'error',
+                error: `MoEngage API returned ${status || 'unknown error'}: ${error?.response?.data?.description || error?.response?.data?.message || error?.message}`,
+            },
+            { status: status === 404 || status === 422 ? 404 : 500 }
+        );
     }
 }
 
-function mapChannelToPath(channel: string): string {
-    const map: Record<string, string> = {
-          push: 'push',
-          email: 'email',
-          sms: 'sms',
-          whatsapp: 'whatsapp',
-          'in-app': 'inapp',
-          inapp: 'inapp',
-          web: 'web',
-    };
-    return map[channel.toLowerCase()] || 'push';
-}
-
 /**
- * Parse the MoEngage /v4/campaigns/info response into only the metrics
- * that are natively visible in the MoEngage Campaign Analytics UI:
+ * Parse the MoEngage POST /core-services/v1/campaign-stats response.
  *
- *  Delivery section:
- *    attempted     -> performance_stats.attempted / total_attempted / push_attempted
- *    sent          -> performance_stats.sent / total_sent / push_sent
- *    failedToSend  -> performance_stats.failed_to_send / bounced / failed / not_sent
- *
- *  Engagement section:
- *    impressions   -> performance_stats.impressions / total_impressions / push_impressions
- *    clicks        -> performance_stats.clicks / total_clicks / click_count
- *    ctr           -> performance_stats.ctr / click_rate, or computed as clicks/impressions
- *
- * Metrics NOT included (not shown in MoEngage UI): delivered, conversions, revenue, conversionRate
+ * Response shape:
+ * { data: { "<campaignId>": [ { platforms: { "<PLATFORM>": { locales: {
+ *   "<locale>": { variations: { all_variations: {
+ *     performance_stats: { attempted, sent, failed, impression, click, ctr }
+ *     delivery_funnel: { impressions }
+ *   } } } } } } } ] } }
  */
-function parseStats(campaignId: string, data: any, attribution: string) {
-    // MoEngage may nest stats under different keys depending on version/channel
-  const perf =
-        data?.performance_stats ||
-        data?.stats ||
-        data?.campaign_stats ||
-        data?.analytics ||
-        data;
+function parseStatsResponse(campaignId: string, data: any, attribution: string) {
+    const campaignEntries: any[] = data?.data?.[campaignId] ?? [];
 
-  // --- Delivery ---
-  const attempted =
-        perf?.attempted ??
-        perf?.total_attempted ??
-        perf?.push_attempted ??
-        perf?.target_count ??
-        undefined;
+    let attempted = 0;
+    let sent = 0;
+    let failed = 0;
+    let impressions = 0;
+    let clicks = 0;
+    let ctrSum = 0;
+    let ctrCount = 0;
 
-  const sent =
-        perf?.sent ??
-        perf?.total_sent ??
-        perf?.push_sent ??
-        undefined;
+    for (const entry of campaignEntries) {
+        const platforms = entry?.platforms ?? {};
+        for (const platformKey of Object.keys(platforms)) {
+            const platform = platforms[platformKey];
+            const locales = platform?.locales ?? {};
+            for (const localeKey of Object.keys(locales)) {
+                const locale = locales[localeKey];
+                const allVariations = locale?.variations?.all_variations ?? {};
+                const perf = allVariations?.performance_stats ?? {};
+                const funnel = allVariations?.delivery_funnel ?? {};
 
-  const failedToSend =
-        perf?.failed_to_send ??
-        perf?.failed ??
-        perf?.bounced ??
-        perf?.not_sent ??
-        perf?.failure_count ??
-        (attempted !== undefined && sent !== undefined ? attempted - sent : undefined);
+                attempted += perf?.attempted ?? 0;
+                sent += perf?.sent ?? 0;
+                failed += perf?.failed ?? perf?.failure ?? 0;
+                impressions += perf?.impression ?? perf?.impressions ?? funnel?.impressions ?? 0;
+                clicks += perf?.click ?? perf?.clicks ?? 0;
 
-  // --- Engagement ---
-  const impressions =
-        perf?.impressions ??
-        perf?.total_impressions ??
-        perf?.push_impressions ??
-        perf?.delivered ??          // for push, impressions ≈ delivered (notification shown)
-        undefined;
+                if (typeof perf?.ctr === 'number' && perf.ctr > 0) {
+                    ctrSum += perf.ctr;
+                    ctrCount++;
+                }
+            }
+        }
+    }
 
-  const clicks =
-        perf?.clicks ??
-        perf?.total_clicks ??
-        perf?.click_count ??
-        perf?.clicked ??
-        undefined;
+    let ctr: number | undefined;
+    if (ctrCount > 0) {
+        ctr = Number((ctrSum / ctrCount).toFixed(2));
+    } else if (clicks > 0 && impressions > 0) {
+        ctr = Number(((clicks / impressions) * 100).toFixed(2));
+    }
 
-  // CTR: prefer native value, else compute from clicks/impressions
-  const ctrRaw =
-        perf?.ctr ??
-        perf?.click_rate ??
-        perf?.click_through_rate ??
-        undefined;
+    const failedToSend = failed > 0
+        ? failed
+        : (attempted > 0 && sent > 0 ? attempted - sent : undefined);
 
-  const ctr =
-        ctrRaw !== undefined
-        ? Number(ctrRaw)
-          : clicks !== undefined && impressions !== undefined && impressions > 0
-        ? Number(((clicks / impressions) * 100).toFixed(2))
-          : undefined;
-
-  return {
+    return {
         campaignId,
-        attribution,
+        attribution: attribution.toLowerCase(),
         source: 'moengage_live',
-        // Delivery
-        ...(attempted !== undefined && { attempted }),
-        ...(sent !== undefined && { sent }),
-        ...(failedToSend !== undefined && { failedToSend }),
-        // Engagement
-        ...(impressions !== undefined && { impressions }),
-        ...(clicks !== undefined && { clicks }),
+        ...(attempted > 0 && { attempted }),
+        ...(sent > 0 && { sent }),
+        ...(failedToSend !== undefined && failedToSend > 0 && { failedToSend }),
+        ...(impressions > 0 && { impressions }),
+        ...(clicks > 0 && { clicks }),
         ...(ctr !== undefined && { ctr }),
-  };
+    };
 }
