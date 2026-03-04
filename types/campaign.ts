@@ -45,21 +45,34 @@ export interface CalendarEvent {
     };
 }
 
+/**
+ * Performance metrics from MoEngage Campaign Analytics.
+  * Only fields natively shown in the MoEngage UI are included.
+   *
+    * Delivery:  attempted | sent | failedToSend
+     * Engagement: impressions | clicks | ctr
+      *
+       * Fabricated metrics (delivered, conversions, revenue, conversionRate)
+        * are intentionally omitted — they are not shown in MoEngage natively.
+         */
 export interface CampaignMetrics {
-    campaignId: string;
-    startDate?: string;
-    endDate?: string;
-    sent?: number;
-    delivered?: number;
-    impressions?: number;
-    clicks?: number;
-    ctr?: number;
-    conversions?: number;
-    conversionRate?: number;
-    revenue?: number;
-    sessions?: number;
-    users?: number;
-    bounceRate?: number;
+      campaignId: string;
+      attribution?: string;
+      source?: string;
+      startDate?: string;
+      endDate?: string;
+      // Delivery (MoEngage Delivery section)
+      attempted?: number;
+      sent?: number;
+      failedToSend?: number;
+      // Engagement (MoEngage Engagement section)
+      impressions?: number;
+      clicks?: number;
+      ctr?: number;
+      // GA4 supplemental fields
+      sessions?: number;
+      users?: number;
+      bounceRate?: number;
 }
 
 export interface CollisionWarning {
