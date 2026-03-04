@@ -22,6 +22,7 @@ const CHANNEL_LEGEND = [
 export default function CampaignCalendar({ onSelect, collisions }: Props) {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
   const calendarRef = useRef<FullCalendar>(null);
 
   useEffect(() => {
@@ -34,27 +35,61 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
       .catch(() => setLoading(false));
   }, []);
 
+  const filteredEvents = activeFilter
+    ? events.filter((e: any) => {
+        const channel = e.extendedProps?.channel || '';
+        return channel.toLowerCase() === activeFilter.toLowerCase();
+      })
+    : events;
+
+  const handleLegendClick = (channel: string) => {
+    setActiveFilter(prev => prev === channel ? null : channel);
+  };
+
   return (
     <div className="bg-white rounded-xl p-4 shadow-sm border border-violet-100">
-      {/* Legend */}
+      {/* Legend / Channel Filter */}
       <div className="flex flex-wrap gap-3 mb-4">
-        {CHANNEL_LEGEND.map(({ channel, color }) => (
-          <div key={channel} className="flex items-center gap-1.5 text-sm text-slate-600">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
-            {channel}
-          </div>
-        ))}
+        {CHANNEL_LEGEND.map(({ channel, color }) => {
+          const isActive = activeFilter === channel;
+          const isDimmed = activeFilter !== null && !isActive;
+          return (
+            <button
+              key={channel}
+              onClick={() => handleLegendClick(channel)}
+              className={`flex items-center gap-1.5 text-sm px-2 py-1 rounded-full border transition-all cursor-pointer select-none ${isActive ? 'border-slate-400 bg-slate-100 text-slate-800 font-semibold shadow-sm' : isDimmed ? 'border-transparent text-slate-300 opacity-50' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:border-slate-200'}`}
+              title={isActive ? 'Clear filter' : `Show only ${channel}`}
+            >
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: color, opacity: isDimmed ? 0.4 : 1 }}
+              />
+              {channel}
+              {isActive && (
+                <span className="ml-1 text-xs text-slate-500 font-bold">x</span>
+              )}
+            </button>
+          );
+        })}
+        {activeFilter && (
+          <button
+            onClick={() => setActiveFilter(null)}
+            className="text-xs text-violet-500 hover:text-violet-700 underline ml-1 self-center"
+          >
+            Show all
+          </button>
+        )}
       </div>
 
       {/* Collision warnings */}
       {collisions.length > 0 && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-amber-600 font-semibold text-sm mb-1">
-            ⚠️ {collisions.length} Campaign Collision{collisions.length > 1 ? 's' : ''} Detected
+            {collisions.length} Campaign Collision{collisions.length > 1 ? 's' : ''} Detected
           </p>
           {collisions.slice(0, 3).map((col, i) => (
             <p key={i} className="text-amber-500 text-xs">
-              • {col.campaigns.map((c) => c.name).join(' & ')} overlap from {col.overlapStart} to {col.overlapEnd}
+              {col.campaigns.map((c) => c.name).join(' & ')} overlap from {col.overlapStart} to {col.overlapEnd}
             </p>
           ))}
         </div>
@@ -76,7 +111,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
               center: 'title',
               right: 'dayGridMonth,dayGridWeek',
             }}
-            events={events as any}
+            events={filteredEvents as any}
             eventClick={(info) => {
               const event = events.find((e) => e.id === info.event.id);
               if (event) onSelect(event);
