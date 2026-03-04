@@ -4,8 +4,6 @@ import axios from 'axios';
 const MOENGAGE_APP_ID = process.env.MOENGAGE_APP_ID || '';
 const MOENGAGE_SECRET_KEY = process.env.MOENGAGE_SECRET_KEY || '';
 const MOENGAGE_BASE_URL = process.env.MOENGAGE_BASE_URL || 'https://api-03.moengage.com';
-// Dashboard base URL (for internal stats API fallback)
-const MOENGAGE_DASH_URL = MOENGAGE_BASE_URL.replace('api-', 'dashboard-');
 
 function getAuthHeader(): string {
   const credentials = `${MOENGAGE_APP_ID}:${MOENGAGE_SECRET_KEY}`;
@@ -16,9 +14,11 @@ function getAuthHeader(): string {
 /**
  * GET /api/campaign-stats?campaignId=<id>&start=<YYYY-MM-DD>&end=<YYYY-MM-DD>
  *
- * Fetches campaign performance stats from MoEngage.
- * Primary: POST /core-services/v1/campaign-stats (Stats API)
- * Fallback: POST /v1/stats/performance_stats/summary (internal dashboard API)
+ * Fetches campaign performance stats from MoEngage Stats API:
+ * POST /core-services/v1/campaign-stats
+ *
+ * Auth: Basic base64(MOENGAGE_APP_ID:MOENGAGE_SECRET_KEY)
+ * where MOENGAGE_SECRET_KEY = Campaign Report key from MoEngage Settings > Account > APIs
  *
  * Maps ONLY the fields that MoEngage natively shows in its UI:
  * - attempted (Attempted)
@@ -27,6 +27,9 @@ function getAuthHeader(): string {
  * - impressions (Impressions)
  * - clicks (Clicked)
  * - ctr (CTR %)
+ *
+ * Note: Requires Stats API feature to be enabled on your MoEngage plan.
+ * Contact MoEngage support if you receive a 403 Forbidden response.
  */
 export async function GET(req: NextRequest) {
   try {
@@ -58,67 +61,42 @@ export async function GET(req: NextRequest) {
       startDate = d.toISOString().slice(0, 10);
     }
 
-    const authHeader = getAuthHeader();
-    const commonHeaders = {
-      'Authorization': authHeader,
-      'MOE-APPKEY': MOENGAGE_APP_ID,
-      'Content-Type': 'application/json',
-    };
-
-    // === Primary: Stats API ===
-    try {
-      const statsUrl = `${MOENGAGE_BASE_URL}/core-services/v1/campaign-stats`;
-      const statsBody = {
-        request_id: `req_${campaignId}_${Date.now()}`,
-        campaign_ids: [campaignId],
-        start_date: startDate,
-        end_date: endDate,
-        attribution_type: attribution,
-        metric_type: 'TOTAL',
-      };
-
-      const statsResp = await axios.post(statsUrl, statsBody, {
-        headers: commonHeaders,
-        timeout: 15000,
-      });
-
-      const stats = parseStatsResponse(campaignId, statsResp.data, attribution);
-      return NextResponse.json(stats);
-    } catch (statsErr: any) {
-      const statsStatus = statsErr?.response?.status;
-      // If 403 (plan not enabled) or 401 (auth), try fallback
-      if (statsStatus !== 403 && statsStatus !== 401) throw statsErr;
-      console.warn(`[API/campaign-stats] Stats API returned ${statsStatus}, trying internal dashboard API`);
-    }
-
-    // === Fallback: Internal dashboard performance_stats API ===
-    // This endpoint is used by the MoEngage dashboard itself
-    const dashUrl = `${MOENGAGE_DASH_URL}/v1/stats/performance_stats/summary`;
-    const dashBody = {
-      campaign_id: campaignId,
+    const url = `${MOENGAGE_BASE_URL}/core-services/v1/campaign-stats`;
+    const requestBody = {
+      request_id: `req_${campaignId}_${Date.now()}`,
+      campaign_ids: [campaignId],
       start_date: startDate,
       end_date: endDate,
+      attribution_type: attribution,
       metric_type: 'TOTAL',
     };
 
-    const dashResp = await axios.post(dashUrl, dashBody, {
-      headers: commonHeaders,
+    const response = await axios.post(url, requestBody, {
+      headers: {
+        'Authorization': getAuthHeader(),
+        'MOE-APPKEY': MOENGAGE_APP_ID,
+        'Content-Type': 'application/json',
+      },
       timeout: 15000,
     });
 
-    const stats = parseDashboardStatsResponse(campaignId, dashResp.data, attribution);
+    const stats = parseStatsResponse(campaignId, response.data, attribution);
     return NextResponse.json(stats);
-
   } catch (error: any) {
     const status = error?.response?.status;
     const campaignId = new URL(req.url).searchParams.get('campaignId') || 'unknown';
     console.error('[API/campaign-stats]', error?.response?.data || error?.message);
 
+    // 403 = Stats API feature not enabled on MoEngage plan
+    const description = error?.response?.data?.description
+      ?? error?.response?.data?.message
+      ?? error?.message;
+
     return NextResponse.json(
       {
         campaignId,
         source: 'error',
-        error: `MoEngage API returned ${status || 'unknown error'}: ${error?.response?.data?.description || error?.response?.data?.message || error?.message}`,
+        error: `MoEngage API returned ${status || 'unknown error'}: ${description}`,
       },
       { status: status === 404 || status === 422 ? 404 : 500 }
     );
@@ -127,6 +105,13 @@ export async function GET(req: NextRequest) {
 
 /**
  * Parse the MoEngage POST /core-services/v1/campaign-stats response.
+ *
+ * Response shape:
+ * { data: { "<campaignId>": [ { platforms: { "<PLATFORM>": { locales: {
+ *   "<locale>": { variations: { all_variations: {
+ *     performance_stats: { attempted, sent, failed, impression, click, ctr }
+ *     delivery_funnel: { impressions }
+ *   } } } } } } } ] } }
  */
 function parseStatsResponse(campaignId: string, data: any, attribution: string) {
   const campaignEntries: any[] = data?.data?.[campaignId] ?? [];
@@ -164,28 +149,6 @@ function parseStatsResponse(campaignId: string, data: any, attribution: string) 
     }
   }
 
-  return buildResult(campaignId, attribution, 'moengage_live', attempted, sent, failed, impressions, clicks, ctrSum, ctrCount);
-}
-
-/**
- * Parse the MoEngage internal dashboard /v1/stats/performance_stats/summary response.
- */
-function parseDashboardStatsResponse(campaignId: string, data: any, attribution: string) {
-  // The dashboard API returns a different shape - adapt as needed
-  const perf = data?.performance_stats ?? data?.data?.performance_stats ?? data ?? {};
-  const funnel = data?.delivery_funnel ?? data?.data?.delivery_funnel ?? {};
-
-  const attempted = perf?.attempted ?? 0;
-  const sent = perf?.sent ?? 0;
-  const failed = perf?.failed ?? perf?.failure ?? 0;
-  const impressions = perf?.impression ?? perf?.impressions ?? funnel?.impressions ?? 0;
-  const clicks = perf?.click ?? perf?.clicks ?? 0;
-  const ctrVal = typeof perf?.ctr === 'number' ? perf.ctr : 0;
-
-  return buildResult(campaignId, attribution, 'moengage_dashboard', attempted, sent, failed, impressions, clicks, ctrVal, ctrVal > 0 ? 1 : 0);
-}
-
-function buildResult(campaignId: string, attribution: string, source: string, attempted: number, sent: number, failed: number, impressions: number, clicks: number, ctrSum: number, ctrCount: number) {
   let ctr: number | undefined;
   if (ctrCount > 0) {
     ctr = Number((ctrSum / ctrCount).toFixed(2));
@@ -200,7 +163,7 @@ function buildResult(campaignId: string, attribution: string, source: string, at
   return {
     campaignId,
     attribution: attribution.toLowerCase(),
-    source,
+    source: 'moengage_live',
     ...(attempted > 0 && { attempted }),
     ...(sent > 0 && { sent }),
     ...(failedToSend !== undefined && failedToSend > 0 && { failedToSend }),
