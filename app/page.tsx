@@ -38,18 +38,18 @@ export default function Home() {
                                 <div>
                                             <h1 className="text-2xl font-bold text-violet-900">
                                                           Campaign Intelligence Dashboard
-                                            </h1>h1>
+                                            </h1>
                                             <p className="text-violet-400 text-sm mt-0.5">
                                                           MoEngage x Google Analytics 4 - Real-time campaign performance
-                                            </p>p>
-                                </div>div>
+                                            </p>
+                                </div>
                                 <div className="flex items-center gap-3">
                                             <span className="px-3 py-1 bg-violet-100 text-violet-600 border border-violet-200 rounded-full text-xs font-medium">
                                                           Live
-                                            </span>span>
-                                </div>div>
-                      </div>div>
-              </div>div>
+                                            </span>
+                                </div>
+                      </div>
+              </div>
         
           {/* Content */}
               <div className="max-w-7xl mx-auto p-6">
@@ -60,28 +60,28 @@ export default function Home() {
                       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
                         {/* Calendar - takes 2/3 */}
                                 <div className="xl:col-span-2">
-                                            <h2 className="text-lg font-semibold text-violet-800 mb-3">Campaign Calendar</h2>h2>
+                                            <h2 className="text-lg font-semibold text-violet-800 mb-3">Campaign Calendar</h2>
                                             <CampaignCalendar onSelect={setSelectedCampaign} collisions={collisions} />
-                                </div>div>
+                                </div>
                       
                         {/* Right panel - Campaign details + chart */}
                                 <div className="flex flex-col gap-4">
                                             <div>
-                                                          <h2 className="text-lg font-semibold text-violet-800 mb-3">Campaign Details</h2>h2>
+                                                          <h2 className="text-lg font-semibold text-violet-800 mb-3">Campaign Details</h2>
                                                           <CampaignDetails campaign={selectedCampaign} />
-                                            </div>div>
+                                            </div>
                                             <MetricsChart
                                                             metrics={metrics}
                                                             campaignName={selectedCampaign?.title || ''}
                                                           />
-                                </div>div>
-                      </div>div>
+                                </div>
+                      </div>
               
                 {/* Footer */}
                       <div className="mt-8 text-center text-violet-300 text-xs">
                                 Powered by MoEngage + Google Analytics 4 - Built with Next.js 14 + Vercel
-                      </div>div>
-              </div>div>
-        </main>main>
+                      </div>
+              </div>
+        </main>
       );
 }</main>
