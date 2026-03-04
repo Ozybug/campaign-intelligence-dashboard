@@ -9,7 +9,7 @@ const MOENGAGE_BASE_URL = process.env.MOENGAGE_BASE_URL || 'https://api-03.moeng
 // MoEngage API channel identifiers to fetch (all channels supported by the search API).
 // Inbound (INAPP), Audience, and Connector channels may or may not be supported
 // depending on the workspace plan — errors per-channel are caught and skipped gracefully.
-const API_CHANNELS = ['PUSH', 'EMAIL', 'SMS', 'MMS', 'RCS', 'INAPP', 'WHATSAPP'];
+const API_CHANNELS = ['PUSH', 'EMAIL', 'SMS', 'MMS', 'RCS', 'INAPP', 'ON_SITE', 'WHATSAPP'];
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
