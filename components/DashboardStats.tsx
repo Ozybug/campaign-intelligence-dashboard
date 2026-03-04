@@ -17,10 +17,14 @@ export default function DashboardStats() {
       .then(res => res.json())
       .then(data => {
         const events = data.events || [];
-        const active = events.filter((e: any) => e.extendedProps?.status === 'active').length;
-        const channels = [...new Set(events.map((e: any) => e.extendedProps?.channel))];
+        const campaigns = data.campaigns || [];
+        // Count active by status (case-insensitive)
+        const active = campaigns.filter((c: any) => 
+          c.status?.toLowerCase() === 'active'
+        ).length;
+        const channels = [...new Set(campaigns.map((c: any) => c.channel))].filter(Boolean);
         setStats({
-          totalCampaigns: events.length,
+          totalCampaigns: campaigns.length,
           activeCampaigns: active,
           channels: channels as string[],
           collisions: (data.collisions || []).length,
@@ -32,25 +36,22 @@ export default function DashboardStats() {
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      {[
-        { label: 'Total Campaigns', value: stats.totalCampaigns, icon: '📅', color: 'text-blue-400' },
-        { label: 'Active Now', value: stats.activeCampaigns, icon: '🟢', color: 'text-green-400' },
-        { label: 'Channels', value: stats.channels.length, icon: '📡', color: 'text-purple-400' },
-        {
-          label: 'Collisions',
-          value: stats.collisions,
-          icon: stats.collisions > 0 ? '⚠️' : '✅',
-          color: stats.collisions > 0 ? 'text-yellow-400' : 'text-green-400',
-        },
-      ].map(({ label, value, icon, color }) => (
-        <div key={label} className="bg-gray-900 rounded-xl p-4 shadow-xl border border-gray-800">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-gray-400 text-xs uppercase tracking-wide">{label}</span>
-            <span>{icon}</span>
-          </div>
-          <p className={`text-3xl font-bold ${color}`}>{value}</p>
-        </div>
-      ))}
+      <StatCard title="TOTAL CAMPAIGNS" value={stats.totalCampaigns} icon="📅" />
+      <StatCard title="ACTIVE NOW" value={stats.activeCampaigns} icon="🟢" />
+      <StatCard title="CHANNELS" value={stats.channels.length} icon="📡" />
+      <StatCard title="COLLISIONS" value={stats.collisions} icon="✅" />
+    </div>
+  );
+}
+
+function StatCard({ title, value, icon }: { title: string; value: number; icon: string }) {
+  return (
+    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-gray-400 text-xs font-semibold tracking-wider">{title}</span>
+        <span className="text-lg">{icon}</span>
+      </div>
+      <div className="text-3xl font-bold text-white">{value}</div>
     </div>
   );
 }
