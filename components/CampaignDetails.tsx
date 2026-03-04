@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from 'react';
 import { CalendarEvent, CampaignMetrics } from '@/types/campaign';
 
@@ -47,9 +46,7 @@ function FilterBadge({ filter, negate }: { filter: SegmentFilter; negate?: boole
   return (
     <span
       className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border ${
-        negate
-          ? 'bg-rose-50 text-rose-700 border-rose-200'
-          : 'bg-violet-50 text-violet-700 border-violet-200'
+        negate ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-violet-50 text-violet-700 border-violet-200'
       }`}
     >
       {negate && <span className="font-bold text-rose-500">NOT</span>}
@@ -80,17 +77,8 @@ function parseCampaignInfo(data: any): CampaignInfo {
     negate: !!f?.negate,
   });
 
-  const rawIncluded: any[] =
-    seg?.included_segments ||
-    seg?.filters ||
-    seg?.conditions ||
-    data?.filters ||
-    [];
-  const rawExcluded: any[] =
-    seg?.excluded_segments ||
-    seg?.exclude_filters ||
-    data?.exclude_filters ||
-    [];
+  const rawIncluded: any[] = seg?.included_segments || seg?.filters || seg?.conditions || data?.filters || [];
+  const rawExcluded: any[] = seg?.excluded_segments || seg?.exclude_filters || data?.exclude_filters || [];
 
   return {
     targetAudience,
@@ -108,7 +96,6 @@ export default function CampaignDetails({ campaign }: Props) {
 
   useEffect(() => {
     if (!campaign) return;
-
     setLoading(true);
     setMetrics(null);
     setCampaignInfo(null);
@@ -118,7 +105,6 @@ export default function CampaignDetails({ campaign }: Props) {
     const id = encodeURIComponent(campaign.id);
     const ch = encodeURIComponent(channel);
 
-    // Fetch campaign performance stats with attribution always click_through
     fetch(`/api/campaign-stats?campaignId=${id}&channel=${ch}&attribution=click_through`)
       .then((res) => res.json())
       .then((data) => {
@@ -126,7 +112,6 @@ export default function CampaignDetails({ campaign }: Props) {
           setStatsError(data.error);
         } else {
           setMetrics(data);
-          // If the API returns full campaign info (segmentation), parse it
           if (data.campaignData) {
             setCampaignInfo(parseCampaignInfo(data.campaignData));
           }
@@ -134,7 +119,7 @@ export default function CampaignDetails({ campaign }: Props) {
         setLoading(false);
       })
       .catch(() => {
-        setStatsError('Failed to load campaign stats');
+        setStatsError('unavailable');
         setLoading(false);
       });
   }, [campaign]);
@@ -151,19 +136,17 @@ export default function CampaignDetails({ campaign }: Props) {
     );
   }
 
-  const statusColor =
-    STATUS_COLORS[campaign.extendedProps.status?.toLowerCase()] || STATUS_COLORS.draft;
+  const statusColor = STATUS_COLORS[campaign.extendedProps.status?.toLowerCase()] || STATUS_COLORS.draft;
   const ep = campaign.extendedProps;
 
-  // Prefer live-fetched info; fall back to extendedProps from calendar event
-  const resolvedTarget =
-    campaignInfo?.targetAudience || ep.targetAudience || 'Segmented Users';
+  const resolvedTarget = campaignInfo?.targetAudience || ep.targetAudience || 'Segmented Users';
   const isAllUsers = resolvedTarget === 'All Users';
-  const includedFilters: SegmentFilter[] =
-    campaignInfo?.includedFilters ?? ep.includedFilters ?? [];
-  const excludedFilters: SegmentFilter[] =
-    campaignInfo?.excludedFilters ?? ep.excludedFilters ?? [];
+  const includedFilters: SegmentFilter[] = campaignInfo?.includedFilters ?? ep.includedFilters ?? [];
+  const excludedFilters: SegmentFilter[] = campaignInfo?.excludedFilters ?? ep.excludedFilters ?? [];
   const hasFilters = includedFilters.length > 0 || excludedFilters.length > 0;
+
+  // Determine whether there's anything worth showing in the metrics section
+  const hasMetrics = metrics !== null && !statsError;
 
   return (
     <div className="bg-white rounded-xl p-6 shadow-sm border border-violet-100">
@@ -216,8 +199,6 @@ export default function CampaignDetails({ campaign }: Props) {
             <span className="text-lg">{isAllUsers ? '🌐' : '🎯'}</span>
             <span className="text-violet-800 font-semibold text-sm">{resolvedTarget}</span>
           </div>
-
-          {/* Included Filters */}
           {includedFilters.length > 0 && (
             <div className="mt-2">
               <p className="text-violet-400 text-xs mb-1.5 font-medium">Include filters</p>
@@ -228,8 +209,6 @@ export default function CampaignDetails({ campaign }: Props) {
               </div>
             </div>
           )}
-
-          {/* Excluded Filters */}
           {excludedFilters.length > 0 && (
             <div className="mt-2">
               <p className="text-rose-400 text-xs mb-1.5 font-medium">Exclude filters</p>
@@ -240,67 +219,51 @@ export default function CampaignDetails({ campaign }: Props) {
               </div>
             </div>
           )}
-
           {!hasFilters && !isAllUsers && (
             <p className="text-violet-300 text-xs mt-1">No filter details available</p>
           )}
         </div>
       </div>
 
-      {/* Performance Metrics - dynamic from campaign-stats API, always click_through */}
-      <h3 className="text-sm font-semibold text-violet-400 uppercase tracking-wide mb-1">
-        Performance Metrics
-      </h3>
-      <p className="text-xs text-violet-300 mb-3 flex items-center gap-1">
-        <span>📊</span>
-        Campaign performance stats · Attribution:{' '}
-        <span className="font-semibold text-violet-400">Click-through</span>
-      </p>
+      {/* Performance Metrics — only shown when data is actually available */}
+      {loading && (
+        <div className="flex items-center justify-center h-16 text-violet-300">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-violet-300 mr-2" />
+          <span className="text-sm">Loading metrics…</span>
+        </div>
+      )}
 
-      {loading ? (
-        <div className="flex items-center justify-center h-32 text-violet-400">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-violet-400 mr-2" />
-          Loading metrics...
-        </div>
-      ) : statsError ? (
-        <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 text-rose-600 text-sm">
-          <span className="font-medium">Could not load stats:</span> {statsError}
-        </div>
-      ) : metrics ? (
-        <div className="grid grid-cols-2 gap-3">
-          {metrics.sent !== undefined && (
-            <MetricCard label="Sent" value={metrics.sent.toLocaleString()} icon="📤" color="text-violet-600" />
-          )}
-          {metrics.delivered !== undefined && (
-            <MetricCard label="Delivered" value={metrics.delivered.toLocaleString()} icon="✅" color="text-emerald-600" />
-          )}
-          {metrics.impressions !== undefined && (
-            <MetricCard label="Impressions" value={metrics.impressions.toLocaleString()} icon="👁️" color="text-violet-600" />
-          )}
-          {metrics.clicks !== undefined && (
-            <MetricCard label="Clicks" value={metrics.clicks.toLocaleString()} icon="🖱️" color="text-sky-600" />
-          )}
-          {metrics.conversions !== undefined && (
-            <MetricCard label="Conversions" value={metrics.conversions.toLocaleString()} icon="🎯" color="text-fuchsia-600" />
-          )}
-          {metrics.revenue !== undefined && metrics.revenue > 0 && (
-            <MetricCard label="Revenue" value={`$${metrics.revenue.toLocaleString()}`} icon="💰" color="text-amber-600" />
-          )}
-          {metrics.ctr !== undefined && (
-            <MetricCard label="CTR" value={`${metrics.ctr.toFixed(2)}%`} icon="📈" color="text-sky-600" />
-          )}
-          {metrics.conversionRate !== undefined && (
-            <MetricCard label="Conv. Rate" value={`${metrics.conversionRate.toFixed(2)}%`} icon="📊" color="text-fuchsia-600" />
-          )}
-          {metrics.sessions !== undefined && (
-            <MetricCard label="Sessions" value={metrics.sessions.toLocaleString()} icon="👁️" color="text-violet-600" />
-          )}
-          {metrics.users !== undefined && metrics.clicks === undefined && (
-            <MetricCard label="Users" value={metrics.users.toLocaleString()} icon="👥" color="text-emerald-600" />
-          )}
-        </div>
-      ) : (
-        <p className="text-violet-300 text-sm text-center py-4">No metrics available</p>
+      {!loading && hasMetrics && metrics && (
+        <>
+          <h3 className="text-sm font-semibold text-violet-400 uppercase tracking-wide mb-1">
+            Performance Metrics
+          </h3>
+          <p className="text-xs text-violet-300 mb-3 flex items-center gap-1">
+            <span>📊</span>
+            Campaign performance stats · Attribution:{' '}
+            <span className="font-semibold text-violet-400">Click-through</span>
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {metrics.attempted !== undefined && (
+              <MetricCard label="Attempted" value={metrics.attempted.toLocaleString()} icon="🚀" color="text-violet-600" />
+            )}
+            {metrics.sent !== undefined && (
+              <MetricCard label="Sent" value={metrics.sent.toLocaleString()} icon="📤" color="text-violet-600" />
+            )}
+            {metrics.failedToSend !== undefined && (
+              <MetricCard label="Failed to Send" value={metrics.failedToSend.toLocaleString()} icon="⚠️" color="text-rose-500" />
+            )}
+            {metrics.impressions !== undefined && (
+              <MetricCard label="Impressions" value={metrics.impressions.toLocaleString()} icon="👁️" color="text-violet-600" />
+            )}
+            {metrics.clicks !== undefined && (
+              <MetricCard label="Clicked" value={metrics.clicks.toLocaleString()} icon="🖱️" color="text-sky-600" />
+            )}
+            {metrics.ctr !== undefined && (
+              <MetricCard label="CTR" value={`${metrics.ctr.toFixed(2)}%`} icon="📈" color="text-sky-600" />
+            )}
+          </div>
+        </>
       )}
     </div>
   );
