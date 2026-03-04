@@ -1,5 +1,4 @@
 "use client";
-
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -12,12 +11,12 @@ interface Props {
 }
 
 const CHANNEL_LEGEND = [
-  { channel: 'Push', color: '#3B82F6' },
-  { channel: 'Email', color: '#10B981' },
-  { channel: 'WhatsApp', color: '#22C55E' },
-  { channel: 'SMS', color: '#F59E0B' },
-  { channel: 'In-App', color: '#8B5CF6' },
-  { channel: 'Web', color: '#EC4899' },
+  { channel: 'Push', color: '#818CF8' },
+  { channel: 'Email', color: '#34D399' },
+  { channel: 'WhatsApp', color: '#6EE7B7' },
+  { channel: 'SMS', color: '#FCD34D' },
+  { channel: 'In-App', color: '#C084FC' },
+  { channel: 'Web', color: '#F9A8D4' },
 ];
 
 export default function CampaignCalendar({ onSelect, collisions }: Props) {
@@ -36,11 +35,11 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
   }, []);
 
   return (
-    <div className="bg-gray-900 rounded-xl p-4 shadow-xl">
+    <div className="bg-white rounded-xl p-4 shadow-sm border border-violet-100">
       {/* Legend */}
       <div className="flex flex-wrap gap-3 mb-4">
         {CHANNEL_LEGEND.map(({ channel, color }) => (
-          <div key={channel} className="flex items-center gap-1.5 text-sm text-gray-300">
+          <div key={channel} className="flex items-center gap-1.5 text-sm text-slate-600">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }} />
             {channel}
           </div>
@@ -49,12 +48,12 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
 
       {/* Collision warnings */}
       {collisions.length > 0 && (
-        <div className="mb-4 p-3 bg-yellow-900/40 border border-yellow-600/50 rounded-lg">
-          <p className="text-yellow-400 font-semibold text-sm mb-1">
+        <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-amber-600 font-semibold text-sm mb-1">
             ⚠️ {collisions.length} Campaign Collision{collisions.length > 1 ? 's' : ''} Detected
           </p>
           {collisions.slice(0, 3).map((col, i) => (
-            <p key={i} className="text-yellow-300/80 text-xs">
+            <p key={i} className="text-amber-500 text-xs">
               • {col.campaigns.map((c) => c.name).join(' & ')} overlap from {col.overlapStart} to {col.overlapEnd}
             </p>
           ))}
@@ -62,8 +61,8 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
       )}
 
       {loading ? (
-        <div className="flex items-center justify-center h-64 text-gray-400">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mr-3" />
+        <div className="flex items-center justify-center h-64 text-violet-400">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-400 mr-3" />
           Loading campaigns...
         </div>
       ) : (
