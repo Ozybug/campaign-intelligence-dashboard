@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { fetchMoEngageCampaigns } from '@/lib/moengage';
 import { detectCollisions } from '@/lib/collision';
 
-// Map channel to color
 const CHANNEL_COLORS: Record<string, string> = {
   'Push': '#3B82F6',
   'Email': '#10B981',
@@ -12,78 +11,71 @@ const CHANNEL_COLORS: Record<string, string> = {
   'Web': '#EC4899',
 };
 
-// Normalize date string - handle "2026-03-04 02:31:08.671000" format
 function normalizeDate(dateStr: string | undefined): string {
   if (!dateStr) return new Date().toISOString();
-  // Replace space with T and trim microseconds to milliseconds
   const normalized = dateStr.replace(' ', 'T').replace(/\.\d{4,6}$/, '.000');
   const d = new Date(normalized);
   if (isNaN(d.getTime())) return new Date().toISOString();
   return d.toISOString();
 }
 
-// Extract YYYY-MM-DD from an ISO string using its stored UTC date portion.
-// For ONE_TIME campaigns we use this as the canonical calendar day,
-// which avoids timezone bleed (e.g. 2026-03-04T23:59Z bleeding into Mar 5 in IST).
-function calendarDay(isoStr: string): string {
-  return isoStr.slice(0, 10);
+// Returns the next calendar day as a YYYY-MM-DD string using pure UTC arithmetic.
+// We use this as FullCalendar's EXCLUSIVE end for single-day events.
+// A date-only end like "2026-03-05" means "up to but not including Mar 5",
+// so the event stays strictly on Mar 4 regardless of the viewer's timezone.
+function nextUTCDay(isoStr: string): string {
+  const d = new Date(isoStr.slice(0, 10) + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
 }
 
 export async function GET() {
   try {
     const campaigns = await fetchMoEngageCampaigns();
     const collisions = detectCollisions(campaigns);
-    
     const isMock = campaigns.length > 0 && campaigns[0].id.startsWith('mock_');
-    
-    // Convert campaigns to FullCalendar event format
+
     const events = campaigns.map(c => {
       const startDate = normalizeDate(c.startDate);
-      const endDate = normalizeDate(c.endDate || c.startDate);
-      
+      const endDate   = normalizeDate(c.endDate || c.startDate);
       const start = new Date(startDate);
-      const end = new Date(endDate);
+      const end   = new Date(endDate);
+      const startDay = startDate.slice(0, 10);
+      const endDay   = endDate.slice(0, 10);
 
-      let finalEnd: Date;
+      let eventEnd: string;
 
       if (c.campaignType === 'ONE_TIME' || c.campaignType === 'BROADCAST_LIVE_ACTIVITY') {
-        // One-time: pin the event to its start calendar day.
-        // Compare calendar days (YYYY-MM-DD) rather than UTC timestamps to avoid
-        // timezone bleed where 23:59:59 UTC on day D = day D+1 in UTC+5:30.
-        const startDay = calendarDay(startDate);
-        const endDay = calendarDay(endDate);
-
         if (startDay === endDay || end <= start) {
-          // Cap end to the very end of the start calendar day in UTC
-          finalEnd = new Date(startDay + 'T23:59:59.999Z');
+          // Single-day ONE_TIME: use a date-only exclusive end so FullCalendar
+          // renders the block only within startDay regardless of timezone.
+          // end="2026-03-05" keeps Happy_Holi on Mar 4 even for UTC+5:30 users.
+          eventEnd = nextUTCDay(startDate);
         } else {
-          finalEnd = end;
+          eventEnd = endDate;
         }
       } else {
-        // Recurring / triggered campaigns: if end <= start, show for 1 day
-        finalEnd = end <= start ? new Date(start.getTime() + 86400000) : end;
+        eventEnd = end <= start ? nextUTCDay(startDate) : endDate;
       }
 
       return {
         id: c.id,
         title: c.name,
         start: startDate,
-        end: finalEnd.toISOString(),
+        end: eventEnd,
         backgroundColor: CHANNEL_COLORS[c.channel] || '#6B7280',
-        borderColor: CHANNEL_COLORS[c.channel] || '#6B7280',
+        borderColor:     CHANNEL_COLORS[c.channel] || '#6B7280',
         extendedProps: {
-          channel: c.channel,
-          status: c.status,
-          campaignType: c.campaignType,
+          channel:        c.channel,
+          status:         c.status,
+          campaignType:   c.campaignType,
           targetAudience: c.targetAudience,
         },
       };
     });
 
     return NextResponse.json({
-      campaigns,
-      events,
-      collisions,
+      campaigns, events, collisions,
       total: campaigns.length,
       source: isMock ? 'mock' : 'moengage_api',
       timestamp: new Date().toISOString(),
