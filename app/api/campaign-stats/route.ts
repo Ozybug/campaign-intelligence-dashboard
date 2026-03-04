@@ -12,18 +12,20 @@ function getAuthHeader(): string {
 }
 
 /**
- * GET /api/campaign-stats?campaignId=<id>&channel=<channel>&attribution=click_through
+ * GET /api/campaign-stats?campaignId=<id>&channel=<channel>
  *
- * Fetches campaign performance stats from MoEngage API:
- * GET /v4/campaigns/info/<channel>/<campaignId>
+ * Fetches campaign performance stats AND campaign info (segmentation) from MoEngage:
+ * GET /v4/campaigns/info/<channel>/<campaignId>?attribution_type=click_through
  *
- * Attribution is always forced to click_through as per requirement.
+ * Attribution is always forced to click_through.
+ * Returns both stats and campaignData (segmentation details) in one response.
  */
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const campaignId = searchParams.get('campaignId');
     const channel = (searchParams.get('channel') || 'push').toLowerCase();
+
     // Attribution is always click_through
     const attribution = 'click_through';
 
@@ -36,13 +38,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(getMockStats(campaignId));
     }
 
-    // Map channel name to MoEngage API path segment
     const channelPath = mapChannelToPath(channel);
 
-    // Fetch campaign info/stats from MoEngage
-    // Endpoint: GET /v4/campaigns/info/{channel}/{campaign_id}?attribution_type=click_through
+    // Single request: GET /v4/campaigns/info/{channel}/{campaign_id}?attribution_type=click_through
     const url = `${MOENGAGE_BASE_URL}/v4/campaigns/info/${channelPath}/${campaignId}`;
-
     const response = await axios.get(url, {
       params: { attribution_type: attribution },
       headers: {
@@ -55,13 +54,17 @@ export async function GET(req: NextRequest) {
 
     const data = response.data;
     const stats = parseStats(campaignId, data, attribution);
-    return NextResponse.json(stats);
+
+    // Return both stats and full campaign data for segmentation/filter rendering
+    return NextResponse.json({
+      ...stats,
+      campaignData: data,
+    });
   } catch (error: any) {
     const status = error?.response?.status;
+    const campaignId = new URL(req.url).searchParams.get('campaignId') || 'unknown';
 
-    // If campaign not found or stats not available, return mock
     if (status === 404 || status === 422) {
-      const campaignId = new URL(req.url).searchParams.get('campaignId') || 'unknown';
       return NextResponse.json(getMockStats(campaignId));
     }
 
@@ -87,11 +90,7 @@ function mapChannelToPath(channel: string): string {
 }
 
 function parseStats(campaignId: string, data: any, attribution: string) {
-  // Try to extract stats from the MoEngage response
-  // The response structure varies by channel, but typically:
-  // data.performance_stats or data.stats or data.campaign_stats
   const perf = data.performance_stats || data.stats || data.campaign_stats || data;
-
   return {
     campaignId,
     attribution,
@@ -115,11 +114,9 @@ function parseStats(campaignId: string, data: any, attribution: string) {
 }
 
 function getMockStats(campaignId: string) {
-  // Return realistic mock stats for development/preview
   const isMock = campaignId.startsWith('mock_');
   const seed = campaignId.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
   const rand = (min: number, max: number) => min + Math.floor(((seed * 31) % 100) / 100 * (max - min));
-
   const sent = rand(5000, 50000);
   const delivered = Math.floor(sent * (0.92 + rand(0, 5) / 100));
   const clicks = Math.floor(delivered * (0.03 + rand(0, 8) / 100));
