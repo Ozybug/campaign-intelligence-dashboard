@@ -3,12 +3,19 @@ import { fetchMoEngageCampaigns } from '@/lib/moengage'
 import { detectCollisions } from '@/lib/collision'
 
 const CHANNEL_COLORS: Record<string, string> = {
-  'Push': '#3B82F6',
-  'Email': '#10B981',
-  'WhatsApp': '#22C55E',
-  'SMS': '#F59E0B',
-  'In-App': '#8B5CF6',
-  'Web': '#EC4899',
+  'Push':        '#818CF8',
+  'Email':       '#34D399',
+  'SMS':         '#FCD34D',
+  'MMS':         '#FB923C',
+  'RCS':         '#38BDF8',
+  'In-App':      '#C084FC',
+  'On-site':     '#A78BFA',
+  'Cards':       '#818CF8',
+  'WhatsApp':    '#6EE7B7',
+  'Web':         '#F9A8D4',
+  'Facebook':    '#60A5FA',
+  'Google Ads':  '#FCA5A5',
+  'Custom':      '#94A3B8',
 }
 
 function normalizeDate(dateStr: string | undefined): string {
@@ -37,11 +44,11 @@ export async function GET() {
 
     const events = campaigns.map((c) => {
       const startDate = normalizeDate(c.startDate)
-      const endDate = normalizeDate(c.endDate || c.startDate)
-      const start = new Date(startDate)
-      const end = new Date(endDate)
-      const startDay = startDate.slice(0, 10)
-      const endDay = endDate.slice(0, 10)
+      const endDate   = normalizeDate(c.endDate || c.startDate)
+      const start     = new Date(startDate)
+      const end       = new Date(endDate)
+      const startDay  = startDate.slice(0, 10)
+      const endDay    = endDate.slice(0, 10)
 
       let eventEnd: string
       if (
@@ -63,14 +70,14 @@ export async function GET() {
       return {
         title: c.name,
         start: startDate,
-        end: eventEnd,
+        end:   eventEnd,
         backgroundColor: CHANNEL_COLORS[c.channel] || '#6B7280',
-        borderColor: CHANNEL_COLORS[c.channel] || '#6B7280',
+        borderColor:     CHANNEL_COLORS[c.channel] || '#6B7280',
         extendedProps: {
-          channel: c.channel,
-          status: c.status,
-          campaignType: c.campaignType,
-          targetAudience: c.targetAudience,
+          channel:         c.channel,
+          status:          c.status,
+          campaignType:    c.campaignType,
+          targetAudience:  c.targetAudience,
           includedFilters: c.includedFilters || [],
           excludedFilters: c.excludedFilters || [],
         },
@@ -82,8 +89,8 @@ export async function GET() {
       campaigns,
       events,
       collisions,
-      total: campaigns.length,
-      source: isMock ? 'mock' : 'moengage_api',
+      total:     campaigns.length,
+      source:    isMock ? 'mock' : 'moengage_api',
       timestamp: new Date().toISOString(),
     })
   } catch (error: any) {
