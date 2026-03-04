@@ -1,172 +1,213 @@
 import axios from 'axios';
-import { Campaign, Channel } from '@/types/campaign';
+import { Campaign } from '@/types/campaign';
 
+const MOENGAGE_APP_ID = process.env.MOENGAGE_APP_ID || '';
+const MOENGAGE_SECRET_KEY = process.env.MOENGAGE_SECRET_KEY || '';
 const MOENGAGE_BASE_URL = process.env.MOENGAGE_BASE_URL || 'https://api-03.moengage.com';
 
-function mapChannel(type: string, channel?: string): Channel {
-  const t = (type + ' ' + (channel || '')).toLowerCase();
-  if (t.includes('whatsapp')) return 'WhatsApp';
-  if (t.includes('email')) return 'Email';
-  if (t.includes('sms')) return 'SMS';
-  if (t.includes('in_app') || t.includes('inapp') || t.includes('in-app')) return 'In-App';
-  if (t.includes('web') && !t.includes('webpush')) return 'Web';
-  if (t.includes('push')) return 'Push';
-  return 'Push';
+// Generate Basic Auth header: Base64(AppID:SecretKey)
+function getAuthHeader(): string {
+  const credentials = `${MOENGAGE_APP_ID}:${MOENGAGE_SECRET_KEY}`;
+  const encoded = Buffer.from(credentials).toString('base64');
+  return `Basic ${encoded}`;
 }
 
-function mapStatus(status: string): Campaign['status'] {
-  const s = (status || '').toLowerCase();
-  if (s.includes('active') || s.includes('running') || s.includes('ongoing')) return 'active';
-  if (s.includes('complete') || s.includes('sent') || s.includes('finish') || s.includes('expired')) return 'completed';
-  if (s.includes('scheduled') || s.includes('upcoming')) return 'scheduled';
-  if (s.includes('pause') || s.includes('stop')) return 'paused';
-  if (s.includes('draft')) return 'draft';
-  return 'completed';
-}
-
-function toDateStr(ts: any): string {
-  if (!ts) return new Date().toISOString().split('T')[0];
-  // Handle epoch seconds vs milliseconds
-  const num = typeof ts === 'number' ? ts : parseInt(ts);
-  const d = num > 1e10 ? new Date(num) : new Date(num * 1000);
-  if (isNaN(d.getTime())) return new Date().toISOString().split('T')[0];
-  return d.toISOString().split('T')[0];
-}
-
-function normalizeCampaign(c: any): Campaign | null {
-  if (!c || typeof c !== 'object') return null;
-  const id = c.campaign_id || c.id || c._id;
-  const name = c.campaign_name || c.name || c.title;
-  if (!id || !name) return null;
-
-  const type = c.campaign_type || c.type || c.channel_type || '';
-  const channel = c.channel || c.delivery_channel || '';
-  const startTs = c.start_time || c.scheduled_time || c.send_time || c.created_time || c.created_at || c.startTime;
-  const endTs = c.end_time || c.expiry_time || c.completed_time || c.sent_time || c.endTime;
+// Fetch campaigns for a given channel using the correct MoEngage Campaign API
+async function fetchCampaignsByChannel(channel: string): Promise<Campaign[]> {
+  const url = `${MOENGAGE_BASE_URL}/core-services/v1/campaigns/search`;
+  const authHeader = getAuthHeader();
+  const requestId = `req_${Date.now()}_${channel}`;
   
-  const startDate = toDateStr(startTs);
-  // If no end date, set it to start + 1 day for one-time campaigns, + 7 for recurring
-  const endDate = endTs ? toDateStr(endTs) : toDateStr(
-    typeof startTs === 'number' ? startTs + 86400 : Date.now() / 1000 + 86400
-  );
+  const allCampaigns: Campaign[] = [];
+  let page = 1;
+  const limit = 15;
+  let hasMore = true;
 
-  return {
-    id: String(id),
-    name: String(name),
-    channel: mapChannel(type, channel),
-    start_time: startDate,
-    end_time: endDate,
-    status: mapStatus(c.status || c.campaign_status || c.state || ''),
-    target_segment: c.segment_name || c.audience_name || c.target_segment || c.segmentName || 'All Users',
-  };
-}
+  while (hasMore) {
+    const body = {
+      campaign_fields: {
+        channels: [channel],
+      },
+      limit,
+      page,
+      request_id: requestId,
+    };
 
-async function tryEndpoint(url: string, auth: string, appId: string): Promise<Campaign[]> {
-  const response = await axios.get(url, {
-    headers: {
-      Authorization: `Basic ${auth}`,
-      'Content-Type': 'application/json',
-      'MOE-APPKEY': appId,
-    },
-    timeout: 15000,
-    validateStatus: () => true,
-  });
-
-  if (response.status !== 200) {
-    console.warn(`[MoEngage] ${url} returned ${response.status}:`, JSON.stringify(response.data).substring(0, 200));
-    return [];
-  }
-
-  const data = response.data;
-  console.log('[MoEngage] Response from', url, '- keys:', Object.keys(data || {}));
-
-  // Try various response shapes
-  const candidates = [
-    data?.data?.campaigns,
-    data?.campaigns,
-    data?.data,
-    data?.results,
-    data?.response,
-    Array.isArray(data) ? data : null,
-  ];
-
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate) && candidate.length > 0) {
-      const normalized = candidate.map(normalizeCampaign).filter(Boolean) as Campaign[];
-      if (normalized.length > 0) return normalized;
-    }
-  }
-
-  console.warn('[MoEngage] Could not find campaign array in response:', JSON.stringify(data).substring(0, 500));
-  return [];
-}
-
-async function fetchMoEngageCampaigns(): Promise<Campaign[]> {
-  const APP_ID = process.env.MOENGAGE_APP_ID!;
-  const SECRET_KEY = process.env.MOENGAGE_SECRET_KEY!;
-  const auth = Buffer.from(`${APP_ID}:${SECRET_KEY}`).toString('base64');
-
-  const now = Math.floor(Date.now() / 1000);
-  const ninetyDaysAgo = now - 90 * 24 * 3600;
-
-  // Try multiple endpoint patterns
-  const endpoints = [
-    // v5 Campaign Report API - list with date range
-    `${MOENGAGE_BASE_URL}/v5/reports/campaigns?app_id=${APP_ID}&from=${ninetyDaysAgo}&to=${now}`,
-    // v5 without date params
-    `${MOENGAGE_BASE_URL}/v5/reports/campaigns?app_id=${APP_ID}`,
-    // Inform Report v2 
-    `${MOENGAGE_BASE_URL}/inform/v2/reports?app_id=${APP_ID}&from=${ninetyDaysAgo}&to=${now}`,
-    // v6 Campaign stats
-    `${MOENGAGE_BASE_URL}/v6/reports/campaigns?app_id=${APP_ID}&from=${ninetyDaysAgo}&to=${now}`,
-  ];
-
-  for (const endpoint of endpoints) {
     try {
-      const campaigns = await tryEndpoint(endpoint, auth, APP_ID);
-      if (campaigns.length > 0) {
-        console.log(`[MoEngage] ✅ Got ${campaigns.length} campaigns from ${endpoint}`);
-        return campaigns;
+      const response = await axios.post(url, body, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authHeader,
+          'MOE-APPKEY': MOENGAGE_APP_ID,
+        },
+        timeout: 15000,
+      });
+
+      const data = response.data;
+      
+      // The API returns an array or an object with campaigns
+      const campaignList: any[] = Array.isArray(data) ? data : 
+                                   (data.campaigns || data.data || data.message || []);
+      
+      if (!Array.isArray(campaignList) || campaignList.length === 0) {
+        hasMore = false;
+        break;
       }
-    } catch (err: any) {
-      console.warn(`[MoEngage] Endpoint ${endpoint} failed:`, err?.message || String(err));
+
+      // Map to our Campaign type
+      for (const c of campaignList) {
+        const campaign: Campaign = {
+          id: c.campaign_id || c.id || `${channel}_${page}_${Math.random()}`,
+          name: c.basic_details?.name || c.name || 'Unnamed Campaign',
+          channel: mapChannel(channel),
+          status: mapStatus(c.status || 'unknown'),
+          startDate: c.scheduling_details?.start_time || c.sent_time || c.created_at || new Date().toISOString(),
+          endDate: c.scheduling_details?.end_time || c.sent_time || c.created_at || new Date().toISOString(),
+          campaignType: c.campaign_delivery_type || c.delivery_type || 'ONE_TIME',
+          targetAudience: c.segmentation_details?.is_all_user_campaign ? 'All Users' : 'Segmented',
+          impressions: undefined,
+          clicks: undefined,
+          conversions: undefined,
+          revenue: undefined,
+        };
+        allCampaigns.push(campaign);
+      }
+
+      // If we got fewer results than limit, we've reached the end
+      if (campaignList.length < limit) {
+        hasMore = false;
+      } else {
+        page++;
+        // Safety: max 5 pages per channel
+        if (page > 5) hasMore = false;
+      }
+    } catch (error: any) {
+      console.error(`[MoEngage] Error fetching ${channel} campaigns (page ${page}):`, error?.response?.data || error?.message);
+      hasMore = false;
     }
   }
 
-  return [];
+  return allCampaigns;
 }
 
-function getMockCampaigns(): Campaign[] {
-  const d = (o: number) => {
-    const dt = new Date(); dt.setDate(dt.getDate() + o);
-    return dt.toISOString().split('T')[0];
+function mapChannel(apiChannel: string): Campaign['channel'] {
+  const map: Record<string, Campaign['channel']> = {
+    PUSH: 'Push',
+    EMAIL: 'Email',
+    SMS: 'SMS',
+    WHATSAPP: 'WhatsApp',
+    INAPP: 'In-App',
+    WEB: 'Web',
   };
+  return map[apiChannel.toUpperCase()] || 'Push';
+}
+
+function mapStatus(apiStatus: string): Campaign['status'] {
+  const s = apiStatus.toLowerCase();
+  if (s === 'active') return 'Active';
+  if (s === 'scheduled' || s === 'fetching users in segment') return 'Scheduled';
+  if (s === 'paused') return 'Paused';
+  if (s === 'sent' || s === 'completed') return 'Completed';
+  if (s === 'draft') return 'Draft';
+  if (s === 'stopped' || s === 'cancelled') return 'Cancelled';
+  return 'Draft';
+}
+
+// Mock data used as fallback
+function getMockCampaigns(): Campaign[] {
+  const today = new Date();
+  const addDays = (d: Date, n: number) => {
+    const r = new Date(d); r.setDate(r.getDate() + n); return r.toISOString().split('T')[0];
+  };
+
   return [
-    { id: 'mock_001', name: 'Spring Sale Push Blast', channel: 'Push', start_time: d(-7), end_time: d(7), status: 'active', target_segment: 'All Users', budget: 5000 },
-    { id: 'mock_002', name: 'Welcome Email Series', channel: 'Email', start_time: d(-14), end_time: d(14), status: 'active', target_segment: 'New Users', budget: 2000 },
-    { id: 'mock_003', name: 'Flash Sale WhatsApp', channel: 'WhatsApp', start_time: d(-5), end_time: d(2), status: 'active', target_segment: 'VIP Segment', budget: 1500 },
-    { id: 'mock_004', name: 'Re-engagement SMS', channel: 'SMS', start_time: d(-3), end_time: d(10), status: 'active', target_segment: 'Churned Users', budget: 800 },
-    { id: 'mock_005', name: 'Product Launch In-App', channel: 'In-App', start_time: d(3), end_time: d(17), status: 'scheduled', target_segment: 'Power Users', budget: 3000 },
-    { id: 'mock_006', name: 'Summer Campaign Email', channel: 'Email', start_time: d(-30), end_time: d(-10), status: 'completed', target_segment: 'All Users', budget: 4500 },
-    { id: 'mock_007', name: 'Weekend Push Deals', channel: 'Push', start_time: d(-2), end_time: d(5), status: 'active', target_segment: 'Engaged Users', budget: 1200 },
-    { id: 'mock_008', name: 'Loyalty Web Banner', channel: 'Web', start_time: d(-10), end_time: d(20), status: 'active', target_segment: 'Loyal Customers', budget: 2200 },
+    {
+      id: 'mock_1',
+      name: 'Summer Push Blast',
+      channel: 'Push',
+      status: 'Active',
+      startDate: addDays(today, -3),
+      endDate: addDays(today, 4),
+      campaignType: 'ONE_TIME',
+      targetAudience: 'All Users',
+    },
+    {
+      id: 'mock_2',
+      name: 'Weekly Email Newsletter',
+      channel: 'Email',
+      status: 'Active',
+      startDate: addDays(today, -7),
+      endDate: addDays(today, 7),
+      campaignType: 'PERIODIC',
+      targetAudience: 'Subscribers',
+    },
+    {
+      id: 'mock_3',
+      name: 'WhatsApp Flash Sale',
+      channel: 'WhatsApp',
+      status: 'Scheduled',
+      startDate: addDays(today, 2),
+      endDate: addDays(today, 5),
+      campaignType: 'ONE_TIME',
+      targetAudience: 'High Value',
+    },
+    {
+      id: 'mock_4',
+      name: 'Re-engagement SMS',
+      channel: 'SMS',
+      status: 'Completed',
+      startDate: addDays(today, -14),
+      endDate: addDays(today, -10),
+      campaignType: 'ONE_TIME',
+      targetAudience: 'Churned Users',
+    },
+    {
+      id: 'mock_5',
+      name: 'In-App Onboarding',
+      channel: 'In-App',
+      status: 'Active',
+      startDate: addDays(today, -30),
+      endDate: addDays(today, 30),
+      campaignType: 'EVENT_TRIGGERED',
+      targetAudience: 'New Users',
+    },
   ];
 }
 
-export async function getCampaigns(): Promise<Campaign[]> {
-  if (!process.env.MOENGAGE_APP_ID || !process.env.MOENGAGE_SECRET_KEY) {
+export async function fetchMoEngageCampaigns(): Promise<Campaign[]> {
+  if (!MOENGAGE_APP_ID || !MOENGAGE_SECRET_KEY) {
     console.log('[MoEngage] No credentials configured, using mock data');
     return getMockCampaigns();
   }
+
+  console.log('[MoEngage] Fetching campaigns from API...');
+  console.log('[MoEngage] App ID:', MOENGAGE_APP_ID);
+  console.log('[MoEngage] Base URL:', MOENGAGE_BASE_URL);
+
+  const channels = ['PUSH', 'EMAIL', 'SMS', 'INAPP', 'WHATSAPP'];
+  
   try {
-    const campaigns = await fetchMoEngageCampaigns();
-    if (campaigns.length === 0) {
-      console.warn('[MoEngage] API returned 0 campaigns, falling back to mock');
+    const results = await Promise.allSettled(
+      channels.map(ch => fetchCampaignsByChannel(ch))
+    );
+
+    const allCampaigns: Campaign[] = [];
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        allCampaigns.push(...result.value);
+      }
+    }
+
+    console.log(`[MoEngage] Total campaigns fetched: ${allCampaigns.length}`);
+
+    if (allCampaigns.length === 0) {
+      console.warn('[MoEngage] No campaigns returned from API, using mock data as fallback');
       return getMockCampaigns();
     }
-    return campaigns;
-  } catch (error: any) {
-    console.error('[MoEngage] Fatal error:', error?.response?.data || error?.message || error);
+
+    return allCampaigns;
+  } catch (error) {
+    console.error('[MoEngage] Fatal error fetching campaigns:', error);
     return getMockCampaigns();
   }
 }
