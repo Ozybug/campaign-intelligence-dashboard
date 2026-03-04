@@ -144,7 +144,7 @@ async function fetchCampaignsByChannel(channel: string): Promise<Campaign[]> {
     } catch (error: any) {
       console.error(
         `[MoEngage] Error fetching ${channel} campaigns:`,
-        error?.response?.data || error?.message
+        JSON.stringify(error?.response?.data || error?.message)
       );
       hasMore = false;
     }
