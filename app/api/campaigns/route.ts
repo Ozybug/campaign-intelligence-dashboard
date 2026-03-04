@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server'
 import { fetchMoEngageCampaigns } from '@/lib/moengage'
 import { detectCollisions } from '@/lib/collision'
 
+// Prevent Vercel ISR/CDN caching — this route fetches live data from MoEngage
+export const dynamic = 'force-dynamic'
+
 const CHANNEL_COLORS: Record<string, string> = {
   'Push':        '#818CF8',
   'Email':       '#34D399',
