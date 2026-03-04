@@ -3,85 +3,159 @@ import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import { useEffect, useRef, useState } from 'react';
-import { CalendarEvent, CollisionWarning } from '@/types/campaign';
+import { CalendarEvent, CollisionWarning, Channel } from '@/types/campaign';
+import { CHANNEL_LEGEND, GROUPS, getChannelsForGroup } from '@/lib/taxonomy';
 
 interface Props {
   onSelect: (event: CalendarEvent) => void;
   collisions: CollisionWarning[];
 }
 
-const CHANNEL_LEGEND = [
-  { channel: 'Push', color: '#818CF8' },
-  { channel: 'Email', color: '#34D399' },
-  { channel: 'WhatsApp', color: '#6EE7B7' },
-  { channel: 'SMS', color: '#FCD34D' },
-  { channel: 'In-App', color: '#C084FC' },
-  { channel: 'Web', color: '#F9A8D4' },
-];
-
 export default function CampaignCalendar({ onSelect, collisions }: Props) {
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [events, setEvents]           = useState<CalendarEvent[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [activeGroup, setActiveGroup] = useState<string | null>(null);
+  const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const calendarRef = useRef<FullCalendar>(null);
 
   useEffect(() => {
     fetch('/api/campaigns')
       .then((res) => res.json())
-      .then((data) => {
-        setEvents(data.events || []);
-        setLoading(false);
-      })
+      .then((data) => { setEvents(data.events || []); setLoading(false); })
       .catch(() => setLoading(false));
   }, []);
 
-  const filteredEvents = activeFilter
-    ? events.filter((e: any) => {
-        const channel = e.extendedProps?.channel || '';
-        return channel.toLowerCase() === activeFilter.toLowerCase();
-      })
-    : events;
+  // ── Filter logic ────────────────────────────────────────────────────────────
+  // If a specific channel is chosen → filter to that channel only.
+  // If only a group is chosen → filter to all channels in that group.
+  // If neither → show all events.
 
-  const handleLegendClick = (channel: string) => {
-    setActiveFilter(prev => prev === channel ? null : channel);
+  const filteredEvents = (() => {
+    if (activeChannel) {
+      return events.filter(
+        (e: any) => (e.extendedProps?.channel || '').toLowerCase() === activeChannel.toLowerCase()
+      );
+    }
+    if (activeGroup) {
+      const groupChannels = getChannelsForGroup(activeGroup as any).map(c => c.id.toLowerCase());
+      return events.filter(
+        (e: any) => groupChannels.includes((e.extendedProps?.channel || '').toLowerCase())
+      );
+    }
+    return events;
+  })();
+
+  // ── Interaction handlers ─────────────────────────────────────────────────────
+
+  const handleGroupClick = (groupId: string) => {
+    if (activeGroup === groupId) {
+      // Deselect group → clear everything
+      setActiveGroup(null);
+      setActiveChannel(null);
+    } else {
+      setActiveGroup(groupId);
+      setActiveChannel(null); // cascade reset
+    }
   };
+
+  const handleChannelClick = (channel: Channel) => {
+    if (activeChannel === channel) {
+      setActiveChannel(null);
+    } else {
+      setActiveChannel(channel);
+      // Also set the group so the group badge lights up
+      const entry = CHANNEL_LEGEND.find(l => l.channel === channel);
+      if (entry) {
+        const group = GROUPS.find(g => g.channels.includes(channel));
+        if (group) setActiveGroup(group.id);
+      }
+    }
+  };
+
+  const clearAll = () => { setActiveGroup(null); setActiveChannel(null); };
+
+  const hasActiveFilter = activeGroup !== null || activeChannel !== null;
+
+  // ── Channels to show in the legend section (driven by group selection) ───────
+  const legendChannels = activeGroup
+    ? getChannelsForGroup(activeGroup as any)
+    : CHANNEL_LEGEND.map(l => ({ id: l.channel, color: l.color, icon: l.icon }));
 
   return (
     <div className="bg-white rounded-xl p-4 shadow-sm border border-violet-100">
-      {/* Legend / Channel Filter */}
-      <div className="flex flex-wrap gap-3 mb-4">
-        {CHANNEL_LEGEND.map(({ channel, color }) => {
-          const isActive = activeFilter === channel;
-          const isDimmed = activeFilter !== null && !isActive;
-          return (
+
+      {/* ── Group filter bar ─────────────────────────────────────────────── */}
+      <div className="mb-3">
+        <p className="text-xs font-semibold text-violet-400 uppercase tracking-wider mb-1.5">Group</p>
+        <div className="flex flex-wrap gap-2">
+          {GROUPS.map(({ id, label }) => {
+            const isActive  = activeGroup === id;
+            const isDimmed  = activeGroup !== null && !isActive;
+            return (
+              <button
+                key={id}
+                onClick={() => handleGroupClick(id)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer select-none ${
+                  isActive
+                    ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                    : isDimmed
+                    ? 'border-slate-200 text-slate-300 opacity-50'
+                    : 'border-violet-200 text-violet-600 hover:bg-violet-50'
+                }`}
+                title={isActive ? 'Clear group filter' : `Filter by ${label}`}
+              >
+                {label}
+                {isActive && <span className="ml-1 opacity-70">×</span>}
+              </button>
+            );
+          })}
+          {hasActiveFilter && (
             <button
-              key={channel}
-              onClick={() => handleLegendClick(channel)}
-              className={`flex items-center gap-1.5 text-sm px-2 py-1 rounded-full border transition-all cursor-pointer select-none ${isActive ? 'border-slate-400 bg-slate-100 text-slate-800 font-semibold shadow-sm' : isDimmed ? 'border-transparent text-slate-300 opacity-50' : 'border-transparent text-slate-600 hover:bg-slate-50 hover:border-slate-200'}`}
-              title={isActive ? 'Clear filter' : `Show only ${channel}`}
+              onClick={clearAll}
+              className="text-xs text-violet-500 hover:text-violet-700 underline self-center ml-1"
             >
-              <div
-                className="w-3 h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: color, opacity: isDimmed ? 0.4 : 1 }}
-              />
-              {channel}
-              {isActive && (
-                <span className="ml-1 text-xs text-slate-500 font-bold">x</span>
-              )}
+              Show all
             </button>
-          );
-        })}
-        {activeFilter && (
-          <button
-            onClick={() => setActiveFilter(null)}
-            className="text-xs text-violet-500 hover:text-violet-700 underline ml-1 self-center"
-          >
-            Show all
-          </button>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Collision warnings */}
+      {/* ── Channel legend / channel filter ──────────────────────────────── */}
+      <div className="mb-4">
+        <p className="text-xs font-semibold text-violet-400 uppercase tracking-wider mb-1.5">
+          {activeGroup ? 'Channels in group' : 'All channels'}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {legendChannels.map(({ id: channel, color, icon }) => {
+            const isActive = activeChannel === channel;
+            const isDimmed = activeChannel !== null && !isActive;
+            return (
+              <button
+                key={channel}
+                onClick={() => handleChannelClick(channel as Channel)}
+                className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all cursor-pointer select-none ${
+                  isActive
+                    ? 'border-slate-400 bg-slate-100 text-slate-800 font-semibold shadow-sm'
+                    : isDimmed
+                    ? 'border-transparent text-slate-300 opacity-50'
+                    : 'border-transparent text-slate-600 hover:bg-slate-50 hover:border-slate-200'
+                }`}
+                title={isActive ? 'Clear channel filter' : `Show only ${channel}`}
+              >
+                <div
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: color, opacity: isDimmed ? 0.4 : 1 }}
+                />
+                <span>{icon}</span>
+                <span>{channel}</span>
+                {isActive && <span className="ml-0.5 text-slate-500 font-bold text-xs">×</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Collision warnings ────────────────────────────────────────────── */}
       {collisions.length > 0 && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-amber-600 font-semibold text-sm mb-1">
@@ -89,12 +163,14 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
           </p>
           {collisions.slice(0, 3).map((col, i) => (
             <p key={i} className="text-amber-500 text-xs">
-              {col.campaigns.map((c) => c.name).join(' & ')} overlap from {col.overlapStart} to {col.overlapEnd}
+              {col.campaigns.map((c) => c.name).join(' & ')} overlap from{' '}
+              {col.overlapStart} to {col.overlapEnd}
             </p>
           ))}
         </div>
       )}
 
+      {/* ── Calendar ──────────────────────────────────────────────────────── */}
       {loading ? (
         <div className="flex items-center justify-center h-64 text-violet-400">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-400 mr-3" />
@@ -107,9 +183,9 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
             plugins={[dayGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
             headerToolbar={{
-              left: 'prev,next today',
+              left:   'prev,next today',
               center: 'title',
-              right: 'dayGridMonth,dayGridWeek',
+              right:  'dayGridMonth,dayGridWeek',
             }}
             events={filteredEvents as any}
             eventClick={(info) => {
