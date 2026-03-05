@@ -1,18 +1,23 @@
 import { NextResponse } from 'next/server';
+import { GoogleAuth } from 'google-auth-library';
 
 export const dynamic = 'force-dynamic';
 
-/** Robustly decode the GA_PRIVATE_KEY from various Vercel env encodings */
-function decodePrivateKey(raw: string): string {
-  // 1. Try literal \n → newline (most common Vercel storage format)
-  let key = raw.replace(/\\n/g, '\n');
-  // 2. If still no real newlines, try replacing literal backslash-n
-  if (!key.includes('\n')) {
-    key = raw.split('\\n').join('\n');
-  }
-  // 3. Strip surrounding quotes that some env editors add
-  key = key.replace(/^["']|["']$/g, '');
-  return key;
+/** Build a GoogleAuth client from Vercel env vars */
+function buildAuth() {
+  const raw = process.env.GA_PRIVATE_KEY ?? '';
+  // Normalise the private key: handle \n literals from Vercel env storage
+  const privateKey = raw.includes('\\n')
+    ? raw.replace(/\\n/g, '\n')
+    : raw;
+
+  return new GoogleAuth({
+    credentials: {
+      client_email: process.env.GA_CLIENT_EMAIL,
+      private_key: privateKey,
+    },
+    scopes: ['https://www.googleapis.com/auth/analytics.readonly'],
+  });
 }
 
 export async function GET() {
@@ -38,17 +43,14 @@ export async function GET() {
   try {
     const { BetaAnalyticsDataClient } = await import('@google-analytics/data');
 
-    const privateKey = decodePrivateKey(process.env.GA_PRIVATE_KEY!);
-
     const analytics = new BetaAnalyticsDataClient({
-      credentials: {
-        client_email: process.env.GA_CLIENT_EMAIL,
-        private_key: privateKey,
-      },
+      authClient: await buildAuth().getClient(),
     });
 
+    const property = `properties/${process.env.GA_PROPERTY_ID}`;
+
     const [report] = await analytics.runReport({
-      property: `properties/${process.env.GA_PROPERTY_ID}`,
+      property,
       dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
       metrics: [
         { name: 'activeUsers' },
@@ -66,7 +68,7 @@ export async function GET() {
     const mv = (i: number) => row?.metricValues?.[i]?.value ?? '0';
 
     const [pagesReport] = await analytics.runReport({
-      property: `properties/${process.env.GA_PROPERTY_ID}`,
+      property,
       dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
       dimensions: [{ name: 'pagePath' }],
       metrics: [{ name: 'screenPageViews' }, { name: 'activeUsers' }],
@@ -81,7 +83,7 @@ export async function GET() {
     }));
 
     const [sourceReport] = await analytics.runReport({
-      property: `properties/${process.env.GA_PROPERTY_ID}`,
+      property,
       dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
       dimensions: [{ name: 'sessionSource' }],
       metrics: [{ name: 'sessions' }, { name: 'activeUsers' }],
