@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
+import { google } from 'googleapis';
 
 export const dynamic = 'force-dynamic';
 
-/** Normalise the GA_PRIVATE_KEY from Vercel env storage (handles literal \n) */
-function privateKey(): string {
+/** Normalise GA_PRIVATE_KEY — handle literal \n stored by Vercel */
+function getPrivateKey(): string {
   const raw = process.env.GA_PRIVATE_KEY ?? '';
-  return raw.includes('\\n') ? raw.replace(/\\n/g, '\n') : raw;
+  // Vercel stores env vars with literal \n — convert to real newlines
+  return raw.replace(/\\n/g, '\n');
 }
 
 export async function GET() {
@@ -29,64 +31,66 @@ export async function GET() {
   }
 
   try {
-    const { BetaAnalyticsDataClient } =
-      await import('@google-analytics/data');
-
-    // Use 'rest' transport to avoid the gRPC / OpenSSL 3.x issue on Vercel
-    const analytics = new BetaAnalyticsDataClient({
-      fallback: 'rest',            // ← key fix: bypass gRPC
-      credentials: {
-        client_email: process.env.GA_CLIENT_EMAIL,
-        private_key: privateKey(),
-      },
+    // Use googleapis JWT auth — uses node crypto directly, avoids gRPC/google-gax
+    const auth = new google.auth.JWT({
+      email: process.env.GA_CLIENT_EMAIL,
+      key: getPrivateKey(),
+      scopes: ['https://www.googleapis.com/auth/analytics.readonly'],
     });
 
+    // Use the analyticsdata v1beta REST API via googleapis
+    const analyticsdata = google.analyticsdata({ version: 'v1beta', auth });
     const property = `properties/${process.env.GA_PROPERTY_ID}`;
-    const dateRanges = [{ startDate: '30daysAgo', endDate: 'today' }];
 
-    const [report] = await analytics.runReport({
-      property,
-      dateRanges,
-      metrics: [
-        { name: 'activeUsers' },
-        { name: 'sessions' },
-        { name: 'conversions' },
-        { name: 'totalRevenue' },
-        { name: 'bounceRate' },
-        { name: 'averageSessionDuration' },
-        { name: 'screenPageViews' },
-        { name: 'newUsers' },
-      ],
-    });
+    const [report, pagesReport, sourceReport] = await Promise.all([
+      analyticsdata.properties.runReport({
+        property,
+        requestBody: {
+          dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+          metrics: [
+            { name: 'activeUsers' },
+            { name: 'sessions' },
+            { name: 'conversions' },
+            { name: 'totalRevenue' },
+            { name: 'bounceRate' },
+            { name: 'averageSessionDuration' },
+            { name: 'screenPageViews' },
+            { name: 'newUsers' },
+          ],
+        },
+      }),
+      analyticsdata.properties.runReport({
+        property,
+        requestBody: {
+          dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+          dimensions: [{ name: 'pagePath' }],
+          metrics: [{ name: 'screenPageViews' }, { name: 'activeUsers' }],
+          orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
+          limit: 5,
+        },
+      }),
+      analyticsdata.properties.runReport({
+        property,
+        requestBody: {
+          dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+          dimensions: [{ name: 'sessionSource' }],
+          metrics: [{ name: 'sessions' }, { name: 'activeUsers' }],
+          orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+          limit: 5,
+        },
+      }),
+    ]);
 
-    const row = report.rows?.[0];
+    const row = report.data.rows?.[0];
     const mv = (i: number) => row?.metricValues?.[i]?.value ?? '0';
 
-    const [pagesReport] = await analytics.runReport({
-      property,
-      dateRanges,
-      dimensions: [{ name: 'pagePath' }],
-      metrics: [{ name: 'screenPageViews' }, { name: 'activeUsers' }],
-      orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
-      limit: 5,
-    });
-
-    const topPages = (pagesReport.rows ?? []).map((r) => ({
+    const topPages = (pagesReport.data.rows ?? []).map((r) => ({
       page: r.dimensionValues?.[0]?.value ?? '/',
       views: parseInt(r.metricValues?.[0]?.value ?? '0'),
       users: parseInt(r.metricValues?.[1]?.value ?? '0'),
     }));
 
-    const [sourceReport] = await analytics.runReport({
-      property,
-      dateRanges,
-      dimensions: [{ name: 'sessionSource' }],
-      metrics: [{ name: 'sessions' }, { name: 'activeUsers' }],
-      orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
-      limit: 5,
-    });
-
-    const topSources = (sourceReport.rows ?? []).map((r) => ({
+    const topSources = (sourceReport.data.rows ?? []).map((r) => ({
       source: r.dimensionValues?.[0]?.value ?? 'unknown',
       sessions: parseInt(r.metricValues?.[0]?.value ?? '0'),
       users: parseInt(r.metricValues?.[1]?.value ?? '0'),
