@@ -1,23 +1,11 @@
 import { NextResponse } from 'next/server';
-import { GoogleAuth } from 'google-auth-library';
 
 export const dynamic = 'force-dynamic';
 
-/** Build a GoogleAuth client from Vercel env vars */
-function buildAuth() {
+/** Normalise the GA_PRIVATE_KEY from Vercel env storage (handles literal \n) */
+function privateKey(): string {
   const raw = process.env.GA_PRIVATE_KEY ?? '';
-  // Normalise the private key: handle \n literals from Vercel env storage
-  const privateKey = raw.includes('\\n')
-    ? raw.replace(/\\n/g, '\n')
-    : raw;
-
-  return new GoogleAuth({
-    credentials: {
-      client_email: process.env.GA_CLIENT_EMAIL,
-      private_key: privateKey,
-    },
-    scopes: ['https://www.googleapis.com/auth/analytics.readonly'],
-  });
+  return raw.includes('\\n') ? raw.replace(/\\n/g, '\n') : raw;
 }
 
 export async function GET() {
@@ -41,17 +29,24 @@ export async function GET() {
   }
 
   try {
-    const { BetaAnalyticsDataClient } = await import('@google-analytics/data');
+    const { BetaAnalyticsDataClient } =
+      await import('@google-analytics/data');
 
+    // Use 'rest' transport to avoid the gRPC / OpenSSL 3.x issue on Vercel
     const analytics = new BetaAnalyticsDataClient({
-      authClient: await buildAuth().getClient(),
+      fallback: 'rest',            // ← key fix: bypass gRPC
+      credentials: {
+        client_email: process.env.GA_CLIENT_EMAIL,
+        private_key: privateKey(),
+      },
     });
 
     const property = `properties/${process.env.GA_PROPERTY_ID}`;
+    const dateRanges = [{ startDate: '30daysAgo', endDate: 'today' }];
 
     const [report] = await analytics.runReport({
       property,
-      dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+      dateRanges,
       metrics: [
         { name: 'activeUsers' },
         { name: 'sessions' },
@@ -69,7 +64,7 @@ export async function GET() {
 
     const [pagesReport] = await analytics.runReport({
       property,
-      dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+      dateRanges,
       dimensions: [{ name: 'pagePath' }],
       metrics: [{ name: 'screenPageViews' }, { name: 'activeUsers' }],
       orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }],
@@ -84,7 +79,7 @@ export async function GET() {
 
     const [sourceReport] = await analytics.runReport({
       property,
-      dateRanges: [{ startDate: '30daysAgo', endDate: 'today' }],
+      dateRanges,
       dimensions: [{ name: 'sessionSource' }],
       metrics: [{ name: 'sessions' }, { name: 'activeUsers' }],
       orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
