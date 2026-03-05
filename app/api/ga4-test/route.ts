@@ -2,6 +2,19 @@ import { NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
+/** Robustly decode the GA_PRIVATE_KEY from various Vercel env encodings */
+function decodePrivateKey(raw: string): string {
+  // 1. Try literal \n → newline (most common Vercel storage format)
+  let key = raw.replace(/\\n/g, '\n');
+  // 2. If still no real newlines, try replacing literal backslash-n
+  if (!key.includes('\n')) {
+    key = raw.split('\\n').join('\n');
+  }
+  // 3. Strip surrounding quotes that some env editors add
+  key = key.replace(/^["']|["']$/g, '');
+  return key;
+}
+
 export async function GET() {
   const hasCredentials =
     process.env.GA_PROPERTY_ID &&
@@ -25,10 +38,12 @@ export async function GET() {
   try {
     const { BetaAnalyticsDataClient } = await import('@google-analytics/data');
 
+    const privateKey = decodePrivateKey(process.env.GA_PRIVATE_KEY!);
+
     const analytics = new BetaAnalyticsDataClient({
       credentials: {
         client_email: process.env.GA_CLIENT_EMAIL,
-        private_key: process.env.GA_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+        private_key: privateKey,
       },
     });
 
