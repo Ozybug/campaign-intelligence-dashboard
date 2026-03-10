@@ -1,16 +1,35 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { DestinationVisitorRow } from '@/lib/metabase';
 
 type SortKey = 'destination' | 'destination_unique_visitors' | 'property_unique_visitors' | 'delta_pct_past7days';
 type View = 'destinations' | 'properties';
 
+// ─── helpers ────────────────────────────────────────────────────────────────
+const fmt = (d: Date) => d.toISOString().split('T')[0];
+
+function defaultRange() {
+  const today = new Date();
+  const end   = fmt(today);
+  const start = fmt(new Date(today.getTime() - 6 * 86400000));
+  return { start, end };
+}
+
+function labelForRange(start: string, end: string) {
+  const s = new Date(start + 'T00:00:00');
+  const e = new Date(end   + 'T00:00:00');
+  const days = Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  return `${s.toLocaleDateString('en-GB', opts)} – ${e.toLocaleDateString('en-GB', opts)} (${days}d)`;
+}
+
+// ─── DeltaBar ────────────────────────────────────────────────────────────────
 function DeltaBar({ value }: { value: number | null }) {
   if (value === null || value === undefined) {
     return <span className="text-xs text-violet-300">—</span>;
   }
-  const pct = Math.min(Math.abs(value), 300);
+  const pct   = Math.min(Math.abs(value), 300);
   const isPos = value >= 0;
   return (
     <div className="flex items-center gap-1.5 min-w-[100px]">
@@ -27,21 +46,193 @@ function DeltaBar({ value }: { value: number | null }) {
   );
 }
 
+// ─── DateRangePicker ─────────────────────────────────────────────────────────
+interface DateRangePickerProps {
+  start: string;
+  end: string;
+  onChange: (start: string, end: string) => void;
+}
+
+function DateRangePicker({ start, end, onChange }: DateRangePickerProps) {
+  const [open, setOpen]         = useState(false);
+  const [picking, setPicking]   = useState<'start' | 'end'>('start');
+  const [draft, setDraft]       = useState({ start, end });
+  const [viewDate, setViewDate] = useState(() => new Date(start + 'T00:00:00'));
+  const ref                     = useRef<HTMLDivElement>(null);
+
+  // close on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const daysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate();
+  const y = viewDate.getFullYear();
+  const m = viewDate.getMonth();
+  const firstDay = new Date(y, m, 1).getDay();
+  const totalDays = daysInMonth(y, m);
+
+  function handleDayClick(day: number) {
+    const clicked = fmt(new Date(y, m, day));
+    if (picking === 'start') {
+      setDraft({ start: clicked, end: clicked });
+      setPicking('end');
+    } else {
+      const [s, e] = clicked < draft.start
+        ? [clicked, draft.start]
+        : [draft.start, clicked];
+      setDraft({ start: s, end: e });
+      setPicking('start');
+      onChange(s, e);
+      setOpen(false);
+    }
+  }
+
+  function prevMonth() {
+    setViewDate(new Date(y, m - 1, 1));
+  }
+  function nextMonth() {
+    setViewDate(new Date(y, m + 1, 1));
+  }
+
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dayNames   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  const inRange = (day: number) => {
+    const d = fmt(new Date(y, m, day));
+    return d >= draft.start && d <= draft.end;
+  };
+  const isStart = (day: number) => fmt(new Date(y, m, day)) === draft.start;
+  const isEnd   = (day: number) => fmt(new Date(y, m, day)) === draft.end;
+
+  // Quick presets
+  function applyPreset(days: number) {
+    const today = new Date();
+    const e = fmt(today);
+    const s = fmt(new Date(today.getTime() - (days - 1) * 86400000));
+    setDraft({ start: s, end: e });
+    onChange(s, e);
+    setOpen(false);
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      {/* Trigger button */}
+      <button
+        onClick={() => { setDraft({ start, end }); setViewDate(new Date(start + 'T00:00:00')); setOpen(o => !o); }}
+        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 transition-colors font-medium"
+      >
+        <svg className="w-3.5 h-3.5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="2"/>
+          <line x1="3" y1="9" x2="21" y2="9" strokeWidth="2"/>
+          <line x1="8" y1="2" x2="8" y2="6" strokeWidth="2"/>
+          <line x1="16" y1="2" x2="16" y2="6" strokeWidth="2"/>
+        </svg>
+        {labelForRange(start, end)}
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div className="absolute right-0 top-9 z-50 bg-white border border-violet-100 rounded-xl shadow-xl p-4 w-72">
+          {/* Quick presets */}
+          <div className="flex gap-1.5 mb-3 flex-wrap">
+            {[7, 14, 30].map(d => (
+              <button
+                key={d}
+                onClick={() => applyPreset(d)}
+                className="text-xs px-2.5 py-1 rounded-full border border-violet-200 text-violet-600 hover:bg-violet-50 transition-colors"
+              >
+                Last {d}d
+              </button>
+            ))}
+          </div>
+
+          {/* Month nav */}
+          <div className="flex items-center justify-between mb-2">
+            <button onClick={prevMonth} className="p-1 rounded hover:bg-violet-50 text-violet-500">‹</button>
+            <span className="text-xs font-semibold text-slate-700">
+              {monthNames[m]} {y}
+            </span>
+            <button onClick={nextMonth} className="p-1 rounded hover:bg-violet-50 text-violet-500">›</button>
+          </div>
+
+          {/* Day headers */}
+          <div className="grid grid-cols-7 mb-1">
+            {dayNames.map(d => (
+              <div key={d} className="text-center text-[10px] text-violet-400 font-medium py-0.5">{d}</div>
+            ))}
+          </div>
+
+          {/* Calendar grid */}
+          <div className="grid grid-cols-7 gap-y-0.5">
+            {Array.from({ length: firstDay }).map((_, i) => <div key={'e' + i} />)}
+            {Array.from({ length: totalDays }, (_, i) => i + 1).map(day => {
+              const inR  = inRange(day);
+              const isS  = isStart(day);
+              const isE  = isEnd(day);
+              return (
+                <button
+                  key={day}
+                  onClick={() => handleDayClick(day)}
+                  className={[
+                    'text-xs py-1 rounded text-center transition-colors w-full',
+                    isS || isE
+                      ? 'bg-violet-600 text-white font-semibold'
+                      : inR
+                      ? 'bg-violet-100 text-violet-800'
+                      : 'text-slate-600 hover:bg-violet-50',
+                  ].join(' ')}
+                >
+                  {day}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Step hint */}
+          <p className="text-[10px] text-violet-400 mt-2 text-center">
+            {picking === 'start' ? 'Click to set start date' : 'Click to set end date'}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Table ──────────────────────────────────────────────────────────────
 export default function DestinationVisitorsTable() {
-  const [rows, setRows] = useState<DestinationVisitorRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<View>('destinations');
-  const [sortKey, setSortKey] = useState<SortKey>('destination_unique_visitors');
+  const def = defaultRange();
+  const [rows, setRows]         = useState<DestinationVisitorRow[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [error, setError]       = useState<string | null>(null);
+  const [view, setView]         = useState<View>('destinations');
+  const [sortKey, setSortKey]   = useState<SortKey>('destination_unique_visitors');
   const [sortDesc, setSortDesc] = useState(true);
-  const [search, setSearch] = useState('');
+  const [search, setSearch]     = useState('');
+  const [dateStart, setDateStart] = useState(def.start);
+  const [dateEnd,   setDateEnd]   = useState(def.end);
 
   useEffect(() => {
-    fetch('/api/destination-visitors')
+    setLoading(true);
+    setError(null);
+    fetch(`/api/destination-visitors?start=${dateStart}&end=${dateEnd}`)
       .then(res => res.json())
-      .then(data => { setRows(Array.isArray(data) ? data : []); setLoading(false); })
-      .catch(() => { setError('Failed to load data'); setLoading(false); });
-  }, []);
+      .then(data => {
+        setRows(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError('Failed to load data');
+        setLoading(false);
+      });
+  }, [dateStart, dateEnd]);
+
+  const days = Math.round(
+    (new Date(dateEnd + 'T00:00:00').getTime() - new Date(dateStart + 'T00:00:00').getTime()) / 86400000
+  ) + 1;
 
   const filtered = rows
     .filter(r => view === 'destinations' ? r.property === null : r.property !== null)
@@ -52,7 +243,8 @@ export default function DestinationVisitorsTable() {
     .sort((a, b) => {
       const aVal = a[sortKey] ?? -Infinity;
       const bVal = b[sortKey] ?? -Infinity;
-      if (typeof aVal === 'string') return sortDesc ? bVal.toString().localeCompare(aVal.toString()) : aVal.toString().localeCompare(bVal.toString());
+      if (typeof aVal === 'string')
+        return sortDesc ? bVal.toString().localeCompare(aVal.toString()) : aVal.toString().localeCompare(bVal.toString());
       return sortDesc ? (bVal as number) - (aVal as number) : (aVal as number) - (bVal as number);
     });
 
@@ -72,9 +264,18 @@ export default function DestinationVisitorsTable() {
       <div className="px-5 py-4 border-b border-violet-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-violet-900">Destination &amp; Property Visitors</h2>
-          <p className="text-xs text-violet-400 mt-0.5">Last 7 days vs previous 7 days · {rows.length} total rows</p>
+          <p className="text-xs text-violet-400 mt-0.5">
+            {days}d: {labelForRange(dateStart, dateEnd)} vs prev {days}d · {rows.length} total rows
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Date range picker */}
+          <DateRangePicker
+            start={dateStart}
+            end={dateEnd}
+            onChange={(s, e) => { setDateStart(s); setDateEnd(e); }}
+          />
+          {/* Search */}
           <input
             type="text"
             placeholder="Search..."
@@ -82,16 +283,23 @@ export default function DestinationVisitorsTable() {
             onChange={e => setSearch(e.target.value)}
             className="text-sm px-3 py-1.5 rounded-lg border border-violet-200 bg-violet-50 text-slate-700 placeholder-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-300 w-40"
           />
+          {/* Destinations / Properties toggle */}
           <div className="flex rounded-lg overflow-hidden border border-violet-200 text-xs font-medium">
-            <button onClick={() => setView('destinations')} className={`px-3 py-1.5 ${view === 'destinations' ? 'bg-violet-600 text-white' : 'bg-white text-violet-500 hover:bg-violet-50'}`}>Destinations</button>
-            <button onClick={() => setView('properties')} className={`px-3 py-1.5 ${view === 'properties' ? 'bg-violet-600 text-white' : 'bg-white text-violet-500 hover:bg-violet-50'}`}>Properties</button>
+            <button
+              onClick={() => setView('destinations')}
+              className={`px-3 py-1.5 ${view === 'destinations' ? 'bg-violet-600 text-white' : 'bg-white text-violet-500 hover:bg-violet-50'}`}
+            >Destinations</button>
+            <button
+              onClick={() => setView('properties')}
+              className={`px-3 py-1.5 ${view === 'properties' ? 'bg-violet-600 text-white' : 'bg-white text-violet-500 hover:bg-violet-50'}`}
+            >Properties</button>
           </div>
         </div>
       </div>
 
       {/* Body */}
       {loading && <div className="p-8 text-center text-violet-400 text-sm">Loading visitor data…</div>}
-      {error && <div className="p-8 text-center text-red-400 text-sm">{error}</div>}
+      {error   && <div className="p-8 text-center text-red-400 text-sm">{error}</div>}
       {!loading && !error && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -101,7 +309,10 @@ export default function DestinationVisitorsTable() {
                   Destination <SortIcon col="destination" />
                 </th>
                 {view === 'properties' && <th className="px-4 py-3 text-left">Property</th>}
-                <th className="px-4 py-3 text-right cursor-pointer hover:text-violet-700" onClick={() => toggleSort(view === 'destinations' ? 'destination_unique_visitors' : 'property_unique_visitors')}>
+                <th
+                  className="px-4 py-3 text-right cursor-pointer hover:text-violet-700"
+                  onClick={() => toggleSort(view === 'destinations' ? 'destination_unique_visitors' : 'property_unique_visitors')}
+                >
                   Unique Visitors <SortIcon col={view === 'destinations' ? 'destination_unique_visitors' : 'property_unique_visitors'} />
                 </th>
                 <th className="px-4 py-3 text-left cursor-pointer hover:text-violet-700" onClick={() => toggleSort('delta_pct_past7days')}>
