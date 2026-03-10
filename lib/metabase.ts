@@ -1,4 +1,4 @@
-const METABASE_URL      = process.env.METABASE_URL      || 'https://metabase.zo.xyz';
+const METABASE_URL = process.env.METABASE_URL || 'https://metabase.zo.xyz';
 const METABASE_USERNAME = process.env.METABASE_USERNAME || '';
 const METABASE_PASSWORD = process.env.METABASE_PASSWORD || '';
 
@@ -35,28 +35,33 @@ export async function getDestinationVisitors(
 
   const today = new Date();
   const fmt = (d: Date) => d.toISOString().split('T')[0];
-  const defaultEnd   = fmt(today);
+  const defaultEnd = fmt(today);
   const defaultStart = fmt(new Date(today.getTime() - 6 * 86400000));
 
   const start = startDate || defaultStart;
-  const end   = endDate   || defaultEnd;
+  const end = endDate || defaultEnd;
 
   try {
     const sessionToken = await getMetabaseSession();
-    const res = await fetch(`${METABASE_URL}/api/card/520/query/json`, {
+    // Use /api/card/:id/query endpoint with the parameter format Metabase expects
+    const res = await fetch(`${METABASE_URL}/api/card/520/query`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Metabase-Session': sessionToken,
       },
       body: JSON.stringify({
+        ignore_cache: false,
+        collection_preview: false,
         parameters: [
           {
+            id: 'start_date',
             type: 'category',
             target: ['variable', ['template-tag', 'start_date']],
             value: start,
           },
           {
+            id: 'end_date',
             type: 'category',
             target: ['variable', ['template-tag', 'end_date']],
             value: end,
@@ -65,7 +70,19 @@ export async function getDestinationVisitors(
       }),
     });
     if (!res.ok) throw new Error(`[Metabase] Query error: ${res.status}`);
-    return await res.json() as DestinationVisitorRow[];
+    const payload = await res.json();
+    // /api/card/:id/query returns { data: { rows, cols } } — normalise to row objects
+    if (payload && payload.data && Array.isArray(payload.data.rows)) {
+      const cols: string[] = payload.data.cols.map((c: { name: string }) => c.name);
+      return payload.data.rows.map((row: unknown[]) => {
+        const obj: Record<string, unknown> = {};
+        cols.forEach((col, i) => { obj[col] = row[i]; });
+        return obj as unknown as DestinationVisitorRow;
+      });
+    }
+    // Fallback: if it's already an array (e.g. /query/json format)
+    if (Array.isArray(payload)) return payload as DestinationVisitorRow[];
+    return [];
   } catch (e) {
     console.error('[Metabase] fetch error:', e);
     return [];
