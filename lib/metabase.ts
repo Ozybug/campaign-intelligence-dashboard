@@ -1,4 +1,4 @@
-const METABASE_URL = process.env.METABASE_URL || 'https://metabase.zo.xyz';
+const METABASE_URL      = process.env.METABASE_URL      || 'https://metabase.zo.xyz';
 const METABASE_USERNAME = process.env.METABASE_USERNAME || '';
 const METABASE_PASSWORD = process.env.METABASE_PASSWORD || '';
 
@@ -24,11 +24,23 @@ async function getMetabaseSession(): Promise<string> {
   return id as string;
 }
 
-export async function getDestinationVisitors(): Promise<DestinationVisitorRow[]> {
+export async function getDestinationVisitors(
+  startDate?: string | null,
+  endDate?: string | null
+): Promise<DestinationVisitorRow[]> {
   if (!METABASE_USERNAME || !METABASE_PASSWORD) {
     console.log('[Metabase] No credentials configured, skipping fetch');
     return [];
   }
+
+  const today = new Date();
+  const fmt = (d: Date) => d.toISOString().split('T')[0];
+  const defaultEnd   = fmt(today);
+  const defaultStart = fmt(new Date(today.getTime() - 6 * 86400000));
+
+  const start = startDate || defaultStart;
+  const end   = endDate   || defaultEnd;
+
   try {
     const sessionToken = await getMetabaseSession();
     const res = await fetch(`${METABASE_URL}/api/card/520/query/json`, {
@@ -37,7 +49,20 @@ export async function getDestinationVisitors(): Promise<DestinationVisitorRow[]>
         'Content-Type': 'application/json',
         'X-Metabase-Session': sessionToken,
       },
-      body: JSON.stringify({}),
+      body: JSON.stringify({
+        parameters: [
+          {
+            type: 'category',
+            target: ['variable', ['template-tag', 'start_date']],
+            value: start,
+          },
+          {
+            type: 'category',
+            target: ['variable', ['template-tag', 'end_date']],
+            value: end,
+          },
+        ],
+      }),
     });
     if (!res.ok) throw new Error(`[Metabase] Query error: ${res.status}`);
     return await res.json() as DestinationVisitorRow[];
