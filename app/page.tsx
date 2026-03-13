@@ -48,6 +48,12 @@ export default function Home() {
             <span className="px-3 py-1 bg-violet-100 text-violet-600 border border-violet-200 rounded-full text-xs font-medium">
               Live
             </span>
+                        <a
+                                      href="/flows"
+                                                    className="px-3 py-1 bg-violet-600 text-white border border-violet-700 rounded-full text-xs font-medium hover:bg-violet-700 transition-colors"
+                                                                >
+                                                                              🔀 Flows
+                                                                                          </a>
           </div>
         </div>
       </div>
