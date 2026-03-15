@@ -6,13 +6,12 @@ const MOENGAGE_APP_ID   = process.env.MOENGAGE_APP_ID   || '';
 const MOENGAGE_SECRET_KEY = process.env.MOENGAGE_SECRET_KEY || '';
 const MOENGAGE_BASE_URL = process.env.MOENGAGE_BASE_URL || 'https://api-03.moengage.com';
 
-// MoEngage API channel identifiers to fetch (all channels supported by the search API).
-// Inbound (INAPP), Audience, and Connector channels may or may not be supported
-// depending on the workspace plan — errors per-channel are caught and skipped gracefully.
-// The campaigns/search API accepts only PUSH and EMAIL channel identifiers.
-// ON_SITE, INAPP, SMS, MMS, RCS, WHATSAPP all return 400 "channels is invalid passed value".
+// MoEngage API channel identifiers to fetch via the campaigns/search API.
+// PUSH and EMAIL are confirmed supported. ONSITE is being tested — if it
+// returns 400 "channels is invalid passed value", it will be caught and skipped.
+// INAPP, SMS, MMS, RCS, WHATSAPP all return 400 and remain excluded.
 // Those channels require a different API endpoint (not yet available in the public API).
-const API_CHANNELS = ['PUSH', 'EMAIL'];
+const API_CHANNELS = ['PUSH', 'EMAIL', 'ONSITE'];
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
