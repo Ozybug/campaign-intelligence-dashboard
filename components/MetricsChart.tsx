@@ -10,8 +10,8 @@ interface Props {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-white border border-violet-100 rounded-lg p-3 text-sm shadow-md">
-        <p className="text-violet-700 font-medium mb-1">{label}</p>
+      <div className="bg-[#1e1e1e] border border-[#444444] rounded-lg p-3 text-sm shadow-md">
+        <p className="text-[#888888] font-medium mb-1">{label}</p>
         {payload.map((entry: any, i: number) => (
           <p key={i} style={{ color: entry.fill }}>
             {entry.name}: {entry.value.toLocaleString()}
@@ -26,8 +26,8 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 export default function MetricsChart({ metrics, campaignName }: Props) {
   if (!metrics) {
     return (
-      <div className="bg-white rounded-xl p-6 shadow-sm border border-violet-100 flex items-center justify-center h-48">
-        <p className="text-violet-300 text-sm">Select a campaign to view performance charts</p>
+      <div className="bg-[#1e1e1e] rounded-xl p-6 shadow-sm border border-[#444444] flex items-center justify-center h-48">
+        <p className="text-[#888888] text-sm">Select a campaign to view performance charts</p>
       </div>
     );
   }
@@ -50,13 +50,13 @@ export default function MetricsChart({ metrics, campaignName }: Props) {
   const hasEngagement = metrics.impressions || metrics.clicks;
 
   return (
-    <div className="bg-white rounded-xl p-6 shadow-sm border border-violet-100">
-      <h3 className="text-lg font-bold text-violet-800 mb-1">Performance Chart</h3>
-      <p className="text-violet-400 text-sm mb-5 truncate">{campaignName}</p>
+    <div className="bg-[#1e1e1e] rounded-xl p-6 shadow-sm border border-[#444444]">
+      <h3 className="text-lg font-bold text-[#E0E0E0] mb-1">Performance Chart</h3>
+      <p className="text-[#888888] text-sm mb-5 truncate">{campaignName}</p>
 
       {barData.length > 0 && (
         <div className="mb-6">
-          <p className="text-violet-400 text-xs uppercase tracking-wide mb-3">
+          <p className="text-[#888888] text-xs uppercase tracking-wide mb-3">
             {hasDelivery ? 'Delivery Metrics' : 'Engagement Metrics'}
           </p>
           <ResponsiveContainer width="100%" height={200}>
@@ -72,12 +72,12 @@ export default function MetricsChart({ metrics, campaignName }: Props) {
       )}
 
       <div>
-        <p className="text-violet-400 text-xs uppercase tracking-wide mb-3">Engagement Overview</p>
+        <p className="text-[#888888] text-xs uppercase tracking-wide mb-3">Engagement Overview</p>
         <div className="grid grid-cols-3 gap-3">
           {metrics.impressions !== undefined && (
-            <div className="bg-violet-50 rounded-lg p-3 text-center border border-violet-100">
+            <div className="bg-[#2a2a2a] rounded-lg p-3 text-center border border-[#444444]">
               <p className="text-indigo-500 text-lg font-bold">{metrics.impressions.toLocaleString()}</p>
-              <p className="text-violet-400 text-xs mt-1">Impressions</p>
+              <p className="text-[#888888] text-xs mt-1">Impressions</p>
             </div>
           )}
           {metrics.clicks !== undefined && (
@@ -93,9 +93,9 @@ export default function MetricsChart({ metrics, campaignName }: Props) {
             </div>
           )}
           {!hasEngagement && metrics.sent !== undefined && (
-            <div className="bg-violet-50 rounded-lg p-3 text-center border border-violet-100">
+            <div className="bg-[#2a2a2a] rounded-lg p-3 text-center border border-[#444444]">
               <p className="text-indigo-500 text-lg font-bold">{metrics.sent.toLocaleString()}</p>
-              <p className="text-violet-400 text-xs mt-1">Sent</p>
+              <p className="text-[#888888] text-xs mt-1">Sent</p>
             </div>
           )}
         </div>

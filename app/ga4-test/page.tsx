@@ -54,15 +54,15 @@ function MetricCard({
   sub?: string;
 }) {
   return (
-    <div className="bg-white rounded-xl p-5 border border-emerald-100 shadow-sm">
+    <div className="bg-[#1e1e1e] rounded-xl p-5 border border-emerald-100 shadow-sm">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-slate-500 text-xs font-semibold uppercase tracking-wide">
+        <span className="text-[#B0B0B0] text-xs font-semibold uppercase tracking-wide">
           {label}
         </span>
         <span className="text-xl">{icon}</span>
       </div>
       <p className="text-2xl font-bold text-emerald-700">{value}</p>
-      {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
+      {sub && <p className="text-xs text-[#B0B0B0] mt-1">{sub}</p>}
     </div>
   );
 }
@@ -112,7 +112,7 @@ export default function GA4TestPage() {
   return (
     <main className="min-h-screen bg-emerald-50 text-slate-800">
       {/* Header */}
-      <div className="bg-white border-b border-emerald-100 px-6 py-4 shadow-sm">
+      <div className="bg-[#1e1e1e] border-b border-emerald-100 px-6 py-4 shadow-sm">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-emerald-900">
@@ -124,7 +124,7 @@ export default function GA4TestPage() {
           </div>
           <div className="flex items-center gap-3">
             {data && (
-              <span className="text-xs text-slate-400">
+              <span className="text-xs text-[#B0B0B0]">
                 Fetched at {fetchedAt}
               </span>
             )}
@@ -136,7 +136,7 @@ export default function GA4TestPage() {
             </button>
             <a
               href="/"
-              className="px-4 py-1.5 bg-violet-100 text-violet-700 text-sm font-medium rounded-full hover:bg-violet-200 transition-colors"
+              className="px-4 py-1.5 bg-[#2a2a2a] text-[#888888] text-sm font-medium rounded-full hover:bg-violet-200 transition-colors"
             >
               ← Dashboard
             </a>
@@ -233,16 +233,16 @@ export default function GA4TestPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
               {/* Top Pages */}
-              <section className="bg-white rounded-xl p-5 border border-emerald-100 shadow-sm">
+              <section className="bg-[#1e1e1e] rounded-xl p-5 border border-emerald-100 shadow-sm">
                 <h2 className="text-sm font-semibold text-emerald-700 uppercase tracking-wide mb-4">
                   📄 Top Pages (last 30 days)
                 </h2>
                 {data.topPages.length === 0 ? (
-                  <p className="text-slate-400 text-sm">No data</p>
+                  <p className="text-[#B0B0B0] text-sm">No data</p>
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-xs text-slate-400 border-b border-slate-100">
+                      <tr className="text-xs text-[#B0B0B0] border-b border-slate-100">
                         <th className="text-left pb-2 font-medium">Page</th>
                         <th className="text-right pb-2 font-medium">Views</th>
                         <th className="text-right pb-2 font-medium">Users</th>
@@ -251,13 +251,13 @@ export default function GA4TestPage() {
                     <tbody>
                       {data.topPages.map((p, i) => (
                         <tr key={i} className="border-b border-slate-50 hover:bg-emerald-50">
-                          <td className="py-2 text-slate-700 font-mono text-xs truncate max-w-[180px]">
+                          <td className="py-2 text-[#E0E0E0] font-mono text-xs truncate max-w-[180px]">
                             {p.page}
                           </td>
                           <td className="py-2 text-right text-emerald-700 font-semibold">
                             {p.views.toLocaleString()}
                           </td>
-                          <td className="py-2 text-right text-slate-500">
+                          <td className="py-2 text-right text-[#B0B0B0]">
                             {p.users.toLocaleString()}
                           </td>
                         </tr>
@@ -268,16 +268,16 @@ export default function GA4TestPage() {
               </section>
 
               {/* Top Sources */}
-              <section className="bg-white rounded-xl p-5 border border-emerald-100 shadow-sm">
+              <section className="bg-[#1e1e1e] rounded-xl p-5 border border-emerald-100 shadow-sm">
                 <h2 className="text-sm font-semibold text-emerald-700 uppercase tracking-wide mb-4">
                   🌐 Top Traffic Sources (last 30 days)
                 </h2>
                 {data.topSources.length === 0 ? (
-                  <p className="text-slate-400 text-sm">No data</p>
+                  <p className="text-[#B0B0B0] text-sm">No data</p>
                 ) : (
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-xs text-slate-400 border-b border-slate-100">
+                      <tr className="text-xs text-[#B0B0B0] border-b border-slate-100">
                         <th className="text-left pb-2 font-medium">Source</th>
                         <th className="text-right pb-2 font-medium">Sessions</th>
                         <th className="text-right pb-2 font-medium">Users</th>
@@ -286,11 +286,11 @@ export default function GA4TestPage() {
                     <tbody>
                       {data.topSources.map((src, i) => (
                         <tr key={i} className="border-b border-slate-50 hover:bg-emerald-50">
-                          <td className="py-2 text-slate-700 capitalize">{src.source}</td>
+                          <td className="py-2 text-[#E0E0E0] capitalize">{src.source}</td>
                           <td className="py-2 text-right text-emerald-700 font-semibold">
                             {src.sessions.toLocaleString()}
                           </td>
-                          <td className="py-2 text-right text-slate-500">
+                          <td className="py-2 text-right text-[#B0B0B0]">
                             {src.users.toLocaleString()}
                           </td>
                         </tr>
@@ -304,7 +304,7 @@ export default function GA4TestPage() {
             {/* Raw JSON debug panel */}
             <section>
               <details className="bg-slate-900 rounded-xl overflow-hidden">
-                <summary className="px-5 py-3 text-slate-300 text-sm font-mono cursor-pointer hover:text-white">
+                <summary className="px-5 py-3 text-[#888888] text-sm font-mono cursor-pointer hover:text-white">
                   🔍 Raw API Response (JSON)
                 </summary>
                 <pre className="px-5 pb-5 text-xs text-emerald-400 overflow-auto max-h-80 whitespace-pre-wrap">
@@ -316,7 +316,7 @@ export default function GA4TestPage() {
         )}
 
         {/* Footer */}
-        <div className="text-center text-slate-300 text-xs pb-4">
+        <div className="text-center text-[#888888] text-xs pb-4">
           GA4 Test Page · Property {data?.propertyId ?? '—'} · Powered by @google-analytics/data
         </div>
       </div>

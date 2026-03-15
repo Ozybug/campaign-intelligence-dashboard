@@ -27,7 +27,7 @@ function labelForRange(start: string, end: string) {
 // ─── DeltaBar ────────────────────────────────────────────────────────────────
 function DeltaBar({ value }: { value: number | null }) {
   if (value === null || value === undefined) {
-    return <span className="text-xs text-violet-300">—</span>;
+    return <span className="text-xs text-[#888888]">—</span>;
   }
   const pct   = Math.min(Math.abs(value), 300);
   const isPos = value >= 0;
@@ -36,7 +36,7 @@ function DeltaBar({ value }: { value: number | null }) {
       <span className={`text-xs font-medium w-14 text-right ${isPos ? 'text-emerald-600' : 'text-red-500'}`}>
         {isPos ? '+' : ''}{value.toFixed(0)}%
       </span>
-      <div className="flex-1 h-1.5 bg-violet-100 rounded-full overflow-hidden">
+      <div className="flex-1 h-1.5 bg-[#2a2a2a] rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full ${isPos ? 'bg-emerald-400' : 'bg-red-400'}`}
           style={{ width: `${(pct / 300) * 100}%` }}
@@ -123,9 +123,9 @@ function DateRangePicker({ start, end, onChange }: DateRangePickerProps) {
       {/* Trigger button */}
       <button
         onClick={() => { setDraft({ start, end }); setViewDate(new Date(start + 'T00:00:00')); setOpen(o => !o); }}
-        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 transition-colors font-medium"
+        className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-[#444444] bg-[#2a2a2a] text-[#888888] hover:bg-[#2a2a2a] transition-colors font-medium"
       >
-        <svg className="w-3.5 h-3.5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-3.5 h-3.5 text-[#888888]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="2"/>
           <line x1="3" y1="9" x2="21" y2="9" strokeWidth="2"/>
           <line x1="8" y1="2" x2="8" y2="6" strokeWidth="2"/>
@@ -136,14 +136,14 @@ function DateRangePicker({ start, end, onChange }: DateRangePickerProps) {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute right-0 top-9 z-50 bg-white border border-violet-100 rounded-xl shadow-xl p-4 w-72">
+        <div className="absolute right-0 top-9 z-50 bg-[#1e1e1e] border border-[#444444] rounded-xl shadow-xl p-4 w-72">
           {/* Quick presets */}
           <div className="flex gap-1.5 mb-3 flex-wrap">
             {[7, 14, 30].map(d => (
               <button
                 key={d}
                 onClick={() => applyPreset(d)}
-                className="text-xs px-2.5 py-1 rounded-full border border-violet-200 text-violet-600 hover:bg-violet-50 transition-colors"
+                className="text-xs px-2.5 py-1 rounded-full border border-[#444444] text-[#888888] hover:bg-[#2a2a2a] transition-colors"
               >
                 Last {d}d
               </button>
@@ -152,17 +152,17 @@ function DateRangePicker({ start, end, onChange }: DateRangePickerProps) {
 
           {/* Month nav */}
           <div className="flex items-center justify-between mb-2">
-            <button onClick={prevMonth} className="p-1 rounded hover:bg-violet-50 text-violet-500">‹</button>
-            <span className="text-xs font-semibold text-slate-700">
+            <button onClick={prevMonth} className="p-1 rounded hover:bg-[#2a2a2a] text-[#888888]">‹</button>
+            <span className="text-xs font-semibold text-[#E0E0E0]">
               {monthNames[m]} {y}
             </span>
-            <button onClick={nextMonth} className="p-1 rounded hover:bg-violet-50 text-violet-500">›</button>
+            <button onClick={nextMonth} className="p-1 rounded hover:bg-[#2a2a2a] text-[#888888]">›</button>
           </div>
 
           {/* Day headers */}
           <div className="grid grid-cols-7 mb-1">
             {dayNames.map(d => (
-              <div key={d} className="text-center text-[10px] text-violet-400 font-medium py-0.5">{d}</div>
+              <div key={d} className="text-center text-[10px] text-[#888888] font-medium py-0.5">{d}</div>
             ))}
           </div>
 
@@ -180,10 +180,10 @@ function DateRangePicker({ start, end, onChange }: DateRangePickerProps) {
                   className={[
                     'text-xs py-1 rounded text-center transition-colors w-full',
                     isS || isE
-                      ? 'bg-violet-600 text-white font-semibold'
+                      ? 'bg-[#444444] text-white font-semibold'
                       : inR
-                      ? 'bg-violet-100 text-violet-800'
-                      : 'text-slate-600 hover:bg-violet-50',
+                      ? 'bg-[#2a2a2a] text-[#E0E0E0]'
+                      : 'text-[#B0B0B0] hover:bg-[#2a2a2a]',
                   ].join(' ')}
                 >
                   {day}
@@ -193,7 +193,7 @@ function DateRangePicker({ start, end, onChange }: DateRangePickerProps) {
           </div>
 
           {/* Step hint */}
-          <p className="text-[10px] text-violet-400 mt-2 text-center">
+          <p className="text-[10px] text-[#888888] mt-2 text-center">
             {picking === 'start' ? 'Click to set start date' : 'Click to set end date'}
           </p>
         </div>
@@ -254,17 +254,17 @@ export default function DestinationVisitorsTable() {
   }
 
   function SortIcon({ col }: { col: SortKey }) {
-    if (sortKey !== col) return <span className="text-violet-300 ml-1">↕</span>;
-    return <span className="text-violet-600 ml-1">{sortDesc ? '↓' : '↑'}</span>;
+    if (sortKey !== col) return <span className="text-[#888888] ml-1">↕</span>;
+    return <span className="text-[#888888] ml-1">{sortDesc ? '↓' : '↑'}</span>;
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-violet-100 shadow-sm overflow-hidden">
+    <div className="bg-[#1e1e1e] rounded-2xl border border-[#444444] shadow-sm overflow-hidden">
       {/* Header */}
-      <div className="px-5 py-4 border-b border-violet-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="px-5 py-4 border-b border-[#444444] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-violet-900">Destination &amp; Property Visitors</h2>
-          <p className="text-xs text-violet-400 mt-0.5">
+          <h2 className="text-lg font-semibold text-[#E0E0E0]">Destination &amp; Property Visitors</h2>
+          <p className="text-xs text-[#888888] mt-0.5">
             {days}d: {labelForRange(dateStart, dateEnd)} vs prev {days}d · {rows.length} total rows
           </p>
         </div>
@@ -281,41 +281,41 @@ export default function DestinationVisitorsTable() {
             placeholder="Search..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="text-sm px-3 py-1.5 rounded-lg border border-violet-200 bg-violet-50 text-slate-700 placeholder-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-300 w-40"
+            className="text-sm px-3 py-1.5 rounded-lg border border-[#444444] bg-[#2a2a2a] text-[#E0E0E0] placeholder-[#888888] focus:outline-none focus:ring-2 focus:ring-[#444444] w-40"
           />
           {/* Destinations / Properties toggle */}
-          <div className="flex rounded-lg overflow-hidden border border-violet-200 text-xs font-medium">
+          <div className="flex rounded-lg overflow-hidden border border-[#444444] text-xs font-medium">
             <button
               onClick={() => setView('destinations')}
-              className={`px-3 py-1.5 ${view === 'destinations' ? 'bg-violet-600 text-white' : 'bg-white text-violet-500 hover:bg-violet-50'}`}
+              className={`px-3 py-1.5 ${view === 'destinations' ? 'bg-[#444444] text-white' : 'bg-[#1e1e1e] text-[#888888] hover:bg-[#2a2a2a]'}`}
             >Destinations</button>
             <button
               onClick={() => setView('properties')}
-              className={`px-3 py-1.5 ${view === 'properties' ? 'bg-violet-600 text-white' : 'bg-white text-violet-500 hover:bg-violet-50'}`}
+              className={`px-3 py-1.5 ${view === 'properties' ? 'bg-[#444444] text-white' : 'bg-[#1e1e1e] text-[#888888] hover:bg-[#2a2a2a]'}`}
             >Properties</button>
           </div>
         </div>
       </div>
 
       {/* Body */}
-      {loading && <div className="p-8 text-center text-violet-400 text-sm">Loading visitor data…</div>}
+      {loading && <div className="p-8 text-center text-[#888888] text-sm">Loading visitor data…</div>}
       {error   && <div className="p-8 text-center text-red-400 text-sm">{error}</div>}
       {!loading && !error && (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-violet-50 text-violet-500 text-xs uppercase tracking-wide">
+            <thead className="bg-[#2a2a2a] text-[#888888] text-xs uppercase tracking-wide">
               <tr>
-                <th className="px-4 py-3 text-left cursor-pointer hover:text-violet-700" onClick={() => toggleSort('destination')}>
+                <th className="px-4 py-3 text-left cursor-pointer hover:text-[#888888]" onClick={() => toggleSort('destination')}>
                   Destination <SortIcon col="destination" />
                 </th>
                 {view === 'properties' && <th className="px-4 py-3 text-left">Property</th>}
                 <th
-                  className="px-4 py-3 text-right cursor-pointer hover:text-violet-700"
+                  className="px-4 py-3 text-right cursor-pointer hover:text-[#888888]"
                   onClick={() => toggleSort(view === 'destinations' ? 'destination_unique_visitors' : 'property_unique_visitors')}
                 >
                   Unique Visitors <SortIcon col={view === 'destinations' ? 'destination_unique_visitors' : 'property_unique_visitors'} />
                 </th>
-                <th className="px-4 py-3 text-left cursor-pointer hover:text-violet-700" onClick={() => toggleSort('delta_pct_past7days')}>
+                <th className="px-4 py-3 text-left cursor-pointer hover:text-[#888888]" onClick={() => toggleSort('delta_pct_past7days')}>
                   WoW Change <SortIcon col="delta_pct_past7days" />
                 </th>
                 {view === 'properties' && <th className="px-4 py-3 text-right">Instagram</th>}
@@ -323,23 +323,23 @@ export default function DestinationVisitorsTable() {
                 {view === 'properties' && <th className="px-4 py-3 text-right">Center</th>}
               </tr>
             </thead>
-            <tbody className="divide-y divide-violet-50">
+            <tbody className="divide-y divide-[#333333]">
               {filtered.map((row, i) => (
-                <tr key={i} className="hover:bg-violet-50/50 transition-colors">
-                  <td className="px-4 py-2.5 font-medium text-slate-700">{row.destination}</td>
-                  {view === 'properties' && <td className="px-4 py-2.5 text-slate-500">{row.property}</td>}
-                  <td className="px-4 py-2.5 text-right font-mono text-slate-700">
+                <tr key={i} className="hover:bg-[#2a2a2a]/50 transition-colors">
+                  <td className="px-4 py-2.5 font-medium text-[#E0E0E0]">{row.destination}</td>
+                  {view === 'properties' && <td className="px-4 py-2.5 text-[#B0B0B0]">{row.property}</td>}
+                  <td className="px-4 py-2.5 text-right font-mono text-[#E0E0E0]">
                     {(view === 'destinations' ? row.destination_unique_visitors : row.property_unique_visitors)?.toLocaleString() ?? '—'}
                   </td>
                   <td className="px-4 py-2.5"><DeltaBar value={row.delta_pct_past7days} /></td>
-                  {view === 'properties' && <td className="px-4 py-2.5 text-right text-slate-500">{row.instagram_users ?? '—'}</td>}
-                  {view === 'properties' && <td className="px-4 py-2.5 text-right text-slate-500">{row.meta_ads_users ?? '—'}</td>}
-                  {view === 'properties' && <td className="px-4 py-2.5 text-right text-slate-500">{row.center_users ?? '—'}</td>}
+                  {view === 'properties' && <td className="px-4 py-2.5 text-right text-[#B0B0B0]">{row.instagram_users ?? '—'}</td>}
+                  {view === 'properties' && <td className="px-4 py-2.5 text-right text-[#B0B0B0]">{row.meta_ads_users ?? '—'}</td>}
+                  {view === 'properties' && <td className="px-4 py-2.5 text-right text-[#B0B0B0]">{row.center_users ?? '—'}</td>}
                 </tr>
               ))}
             </tbody>
           </table>
-          {filtered.length === 0 && <div className="p-8 text-center text-violet-300 text-sm">No results found</div>}
+          {filtered.length === 0 && <div className="p-8 text-center text-[#888888] text-sm">No results found</div>}
         </div>
       )}
     </div>

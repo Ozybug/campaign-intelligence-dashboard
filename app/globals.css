@@ -89,7 +89,7 @@ html, body {
 /* ── Tailwind Component Dark Theme Overrides ── */
 
 /* White card/panel backgrounds → dark */
-.bg-white {
+.bg-[#1e1e1e] {
     background-color: #1e1e1e !important;
         color: #E0E0E0 !important;
         }
@@ -98,21 +98,21 @@ html, body {
         .bg-gray-50,
         .bg-gray-100,
         .bg-slate-50,
-        .bg-slate-100 {
+        .bg-[#2a2a2a] {
             background-color: #2a2a2a !important;
             }
 
             /* Violet/purple light backgrounds → dark */
-            .bg-violet-50,
-            .bg-violet-100,
+            .bg-[#2a2a2a],
+            .bg-[#2a2a2a],
             .bg-purple-50,
             .bg-purple-100 {
                 background-color: #2a2a2a !important;
                 }
 
                 /* violet-100 borders → dark border */
-                .border-violet-100,
-                .border-violet-200 {
+                .border-[#444444],
+                .border-[#444444] {
                     border-color: #444444 !important;
                     }
 
@@ -125,23 +125,23 @@ html, body {
                         }
 
                         /* Violet/purple text → accent gray */
-                        .text-violet-400,
-                        .text-violet-500,
-                        .text-violet-600,
-                        .text-violet-700,
+                        .text-[#888888],
+                        .text-[#888888],
+                        .text-[#888888],
+                        .text-[#888888],
                         .text-purple-500,
                         .text-purple-600 {
                             color: #888888 !important;
                             }
 
                             /* Slate text → secondary/primary text */
-                            .text-slate-400,
-                            .text-slate-500,
-                            .text-slate-600 {
+                            .text-[#B0B0B0],
+                            .text-[#B0B0B0],
+                            .text-[#B0B0B0] {
                                 color: #B0B0B0 !important;
                                 }
 
-                                .text-slate-700,
+                                .text-[#E0E0E0],
                                 .text-slate-800,
                                 .text-slate-900 {
                                     color: #E0E0E0 !important;

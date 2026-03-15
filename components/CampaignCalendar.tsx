@@ -82,11 +82,11 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
     : CHANNEL_LEGEND.map(l => ({ id: l.channel, color: l.color, icon: l.icon }));
 
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-violet-100">
+    <div className="bg-[#1e1e1e] rounded-xl p-4 shadow-sm border border-[#444444]">
 
       {/* ── Group filter bar ─────────────────────────────────────────────── */}
       <div className="mb-3">
-        <p className="text-xs font-semibold text-violet-400 uppercase tracking-wider mb-1.5">Group</p>
+        <p className="text-xs font-semibold text-[#888888] uppercase tracking-wider mb-1.5">Group</p>
         <div className="flex flex-wrap gap-2">
           {GROUPS.map(({ id, label }) => {
             const isActive  = activeGroup === id;
@@ -97,10 +97,10 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
                 onClick={() => handleGroupClick(id)}
                 className={`px-3 py-1 rounded-full text-xs font-semibold border transition-all cursor-pointer select-none ${
                   isActive
-                    ? 'bg-violet-600 text-white border-violet-600 shadow-sm'
+                    ? 'bg-[#444444] text-white border-[#444444] shadow-sm'
                     : isDimmed
-                    ? 'border-slate-200 text-slate-300 opacity-50'
-                    : 'border-violet-200 text-violet-600 hover:bg-violet-50'
+                    ? 'border-slate-200 text-[#888888] opacity-50'
+                    : 'border-[#444444] text-[#888888] hover:bg-[#2a2a2a]'
                 }`}
                 title={isActive ? 'Clear group filter' : `Filter by ${label}`}
               >
@@ -112,7 +112,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
           {hasActiveFilter && (
             <button
               onClick={clearAll}
-              className="text-xs text-violet-500 hover:text-violet-700 underline self-center ml-1"
+              className="text-xs text-[#888888] hover:text-[#888888] underline self-center ml-1"
             >
               Show all
             </button>
@@ -122,7 +122,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
 
       {/* ── Channel legend / channel filter ──────────────────────────────── */}
       <div className="mb-4">
-        <p className="text-xs font-semibold text-violet-400 uppercase tracking-wider mb-1.5">
+        <p className="text-xs font-semibold text-[#888888] uppercase tracking-wider mb-1.5">
           {activeGroup ? 'Channels in group' : 'All channels'}
         </p>
         <div className="flex flex-wrap gap-2">
@@ -135,10 +135,10 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
                 onClick={() => handleChannelClick(channel as Channel)}
                 className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-full border transition-all cursor-pointer select-none ${
                   isActive
-                    ? 'border-slate-400 bg-slate-100 text-slate-800 font-semibold shadow-sm'
+                    ? 'border-slate-400 bg-[#2a2a2a] text-slate-800 font-semibold shadow-sm'
                     : isDimmed
-                    ? 'border-transparent text-slate-300 opacity-50'
-                    : 'border-transparent text-slate-600 hover:bg-slate-50 hover:border-slate-200'
+                    ? 'border-transparent text-[#888888] opacity-50'
+                    : 'border-transparent text-[#B0B0B0] hover:bg-[#2a2a2a] hover:border-slate-200'
                 }`}
                 title={isActive ? 'Clear channel filter' : `Show only ${channel}`}
               >
@@ -148,7 +148,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
                 />
                 <span>{icon}</span>
                 <span>{channel}</span>
-                {isActive && <span className="ml-0.5 text-slate-500 font-bold text-xs">×</span>}
+                {isActive && <span className="ml-0.5 text-[#B0B0B0] font-bold text-xs">×</span>}
               </button>
             );
           })}
@@ -172,7 +172,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
 
       {/* ── Calendar ──────────────────────────────────────────────────────── */}
       {loading ? (
-        <div className="flex items-center justify-center h-64 text-violet-400">
+        <div className="flex items-center justify-center h-64 text-[#888888]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-400 mr-3" />
           Loading campaigns...
         </div>
