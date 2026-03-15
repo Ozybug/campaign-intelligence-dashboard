@@ -144,7 +144,7 @@ export default function CampaignDetails({ campaign }: Props) {
                           <div className="text-center">
                                     <div className="text-5xl mb-3">📋</div>
                                     <p className="text-lg font-medium text-[#888888]">Select a campaign</p>
-                                    <p className="text-sm mt-1 text-[#888888]">Click any campaign on the calendar to view details</p>
+📋🌐🎯…📊·🚀📤⚠️👁️🖱️📈                                    <p className="text-sm mt-1 text-[#888888]">Click any campaign on the calendar to view details</p>
                           </div>
                   </div>
                 );
