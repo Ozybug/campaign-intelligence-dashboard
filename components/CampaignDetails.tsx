@@ -1,14 +1,6 @@
-"use client";
-import { useEffect, useState } from 'react';
-import { CalendarEvent, CampaignMetrics } from '@/types/campaign';
-import {
-    CHANNELS,
-    GROUPS,
-    getGroupForChannel,
-    isDirectLaunch,
-    API_DELIVERY_TYPE_MAP,
-} from '@/lib/taxonomy';
 
+<<<<<<< HEAD
+=======
 interface SegmentFilter {
     name: string;
     operator?: string;
@@ -291,3 +283,5 @@ export default function CampaignDetails({ campaign }: Props) {
           </div>
         );
 }</></div>
+
+>>>>>>> 920003d53d07881203ffe4aeb530dc568478f6fd
