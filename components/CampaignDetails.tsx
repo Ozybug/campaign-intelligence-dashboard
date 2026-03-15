@@ -10,13 +10,13 @@ import {
 } from '@/lib/taxonomy';
 
 interface SegmentFilter {
-    name: string;
+    name: string
     operator?: string;
     value?: string | number | boolean;
     category?: string;
     data_type?: string;
     negate?: boolean;
-}
+
 
 interface CampaignInfo {
     targetAudience?: string;
@@ -51,11 +51,11 @@ function MetricCard({ label, value, icon, color }: { label: string; value: strin
     return (
           <div className="bg-[#1e1e1e] rounded-lg p-4 border border-[#444444] shadow-sm">
                 <div className="flex items-center justify-between mb-1">
-                        <span className="text-[#B0B0B0] text-xs uppercase tracking-wide">{label}</span>span>
-                        <span className="text-lg">{icon}</span>span>
-                </div>div>
-                <p className={`text-2xl font-bold ${color}`}>{value}</p>p>
-          </div>div>
+                        <span className="text-[#B0B0B0] text-xs uppercase tracking-wide">{label}</span>
+                        <span className="text-lg">{icon}</span>
+                </div>
+                <p className={`text-2xl font-bold ${color}`}>{value}</p>
+          </div>
         );
 }
 
@@ -67,16 +67,16 @@ function FilterBadge({ filter, isExcluded }: { filter: SegmentFilter; isExcluded
                   className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium border ${
                             negative
                               ? 'bg-rose-50 text-rose-700 border-rose-200'
-                              : 'bg-violet-50 text-violet-700 border-violet-200'
+                              : 'bg-[#2a2a2a] text-[#888888] border-[#444444]'
                   }`}
                 >
-            {showNot && <span className="font-bold text-rose-500">NOT</span>span>}
-                <span className="font-semibold">{filter.name}</span>span>
-            {filter.operator && <span className="text-slate-400">{filter.operator}</span>span>}
+            {showNot && <span className="font-bold text-rose-500">NOT</span>}
+                <span className="font-semibold">{filter.name}</span>
+            {filter.operator && <span className="text-slate-400">{filter.operator}</span>}
             {filter.value !== undefined && filter.value !== '' && (
-                          <span className="text-violet-900 font-medium">{String(filter.value)}</span>span>
+                          <span className="text-[#E0E0E0] font-medium">{String(filter.value)}</span>
                 )}
-          </span>span>
+          </span>
         );
 }
 
@@ -148,13 +148,13 @@ export default function CampaignDetails({ campaign }: Props) {
   
     if (!campaign) {
           return (
-                  <div className="bg-white rounded-xl p-6 shadow-sm border border-violet-100 h-full flex items-center justify-center">
+                  <div className="bg-[#1e1e1e] rounded-xl p-6 shadow-sm border border-[#444444] h-full flex items-center justify-center">
                           <div className="text-center">
-                                    <div className="text-5xl mb-3">📋</div>div>
-                                    <p className="text-lg font-medium text-violet-500">Select a campaign</p>p>
-                                    <p className="text-sm mt-1 text-violet-300">Click any campaign on the calendar to view details</p>p>
-                          </div>div>
-                  </div>div>
+                                    <div className="text-5xl mb-3">📋</div>
+                                    <p className="text-lg font-medium text-[#888888]">Select a campaign</p>
+                                    <p className="text-sm mt-1 text-[#888888]">Click any campaign on the calendar to view details</p>
+                          </div>
+                  </div>
                 );
     }
   
@@ -178,15 +178,15 @@ export default function CampaignDetails({ campaign }: Props) {
     const hasMetrics = metrics !== null && !statsError;
   
     return (
-          <div className="bg-white rounded-xl p-6 shadow-sm border border-violet-100">
+          <div className="bg-[#1e1e1e] rounded-xl p-6 shadow-sm border border-[#444444]">
             {/* ── Header ──────────────────────────────────────────────────────── */}
                 <div className="mb-5">
-                        <h2 className="text-xl font-bold text-violet-900 mb-2">{campaign.title}</h2>h2>
+                        <h2 className="text-xl font-bold text-[#E0E0E0] mb-2">{campaign.title}</h2>
                         <div className="flex items-center gap-2 flex-wrap">
                           {groupCfg && (
                         <span className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${groupColor}`}>
                           {groupCfg.label}
-                        </span>span>
+                        </span>
                                   )}
                                   <span
                                                 className="px-2 py-0.5 rounded-full text-xs font-medium border"
@@ -197,97 +197,97 @@ export default function CampaignDetails({ campaign }: Props) {
                                                 }}
                                               >
                                     {channelCfg?.icon ?? ''} {channel}
-                                  </span>span>
+                                  </span>
                                   <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${statusColor}`}>
                                     {ep.status}
-                                  </span>span>
+                                  </span>
                           {showDeliveryType && (
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium border bg-sky-50 text-sky-700 border-sky-200">
                           {deliveryLabel}
-                        </span>span>
+                        </span>
                                   )}
                           {channelDirect && (
                         <span className="px-2 py-0.5 rounded-full text-xs font-medium border bg-teal-50 text-teal-700 border-teal-200">
                                       Direct Launch
-                        </span>span>
+                        </span>
                                   )}
-                        </div>div>
-                </div>div>
+                        </div>
+                </div>
           
             {/* ── Dates ───────────────────────────────────────────────────────── */}
                 <div className="grid grid-cols-2 gap-3 mb-4 text-sm">
-                        <div className="bg-violet-50 rounded-lg p-3 border border-violet-100">
-                                  <p className="text-violet-400 text-xs mb-1">Start Date</p>p>
-                                  <p className="text-violet-800 font-medium">{campaign.start}</p>p>
+                        <div className="bg-[#2a2a2a] rounded-lg p-3 border border-[#444444]">
+                                  <p className="text-[#888888] text-xs mb-1">Start Date</p>
+                                  <p className="text-[#E0E0E0] font-medium">{campaign.start}</p>
                         </div>
-                        <div className="bg-violet-50 rounded-lg p-3 border border-violet-100">
-                                  <p className="text-violet-400 text-xs mb-1">End Date</p>p>
-                                  <p className="text-violet-800 font-medium">{campaign.end || campaign.start}</p>p>
-                        </div>div>
-                </div>div>
+                        <div className="bg-[#2a2a2a] rounded-lg p-3 border border-[#444444]">
+                                  <p className="text-[#888888] text-xs mb-1">End Date</p>
+                                  <p className="text-[#E0E0E0] font-medium">{campaign.end || campaign.start}</p>
+                        </div>
+                </div>
           
             {/* ── Target Users ─────────────────────────────────────────────────── */}
                 <div className="mb-4">
-                        <h3 className="text-xs font-semibold text-violet-400 uppercase tracking-wide mb-2">
+                        <h3 className="text-xs font-semibold text-[#888888] uppercase tracking-wide mb-2">
                                   Target Users
-                        </h3>h3>
-                        <div className="bg-violet-50 rounded-lg p-3 border border-violet-100">
+                        </h3>
+                        <div className="bg-[#2a2a2a] rounded-lg p-3 border border-[#444444]">
                                   <div className="flex items-center gap-2 mb-1">
-                                              <span className="text-lg">{isAllUsers ? '🌐' : '🎯'}</span>span>
-                                              <span className="text-violet-800 font-semibold text-sm">{resolvedTarget}</span>span>
-                                  </div>div>
+                                              <span className="text-lg">{isAllUsers ? '🌐' : '🎯'}</span>
+                                              <span className="text-[#E0E0E0] font-semibold text-sm">{resolvedTarget}</span>
+                                  </div>
                           {includedFilters.length > 0 && (
                         <div className="mt-2">
-                                      <p className="text-violet-400 text-xs mb-1.5 font-medium">Include filters</p>p>
+                                      <p className="text-[#888888] text-xs mb-1.5 font-medium">Include filters</p>
                                       <div className="flex flex-wrap gap-1.5">
                                         {includedFilters.map((f, i) => (
                                             <FilterBadge key={i} filter={f} />
                                           ))}
-                                      </div>div>
-                        </div>div>
+                                      </div>
+                        </div>
                                   )}
                           {excludedFilters.length > 0 && (
                         <div className="mt-2">
-                                      <p className="text-rose-400 text-xs mb-1.5 font-medium">Exclude filters</p>p>
+                                      <p className="text-rose-400 text-xs mb-1.5 font-medium">Exclude filters</p>
                                       <div className="flex flex-wrap gap-1.5">
                                         {excludedFilters.map((f, i) => (
                                             <FilterBadge key={i} filter={f} isExcluded />
                                           ))}
-                                      </div>div>
-                        </div>div>
+                                      </div>
+                        </div>
                                   )}
                           {!hasFilters && !isAllUsers && (
-                        <p className="text-violet-300 text-xs mt-1">No filter details available</p>p>
+                        <p className="text-[#888888] text-xs mt-1">No filter details available</p>
                                   )}
-                        </div>div>
-                </div>div>
+                        </div>
+                </div>
           
             {/* ── Performance Metrics ──────────────────────────────────────────── */}
             {loading && (
-                    <div className="flex items-center justify-center h-16 text-violet-300">
+                    <div className="flex items-center justify-center h-16 text-[#888888]">
                               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-violet-300 mr-2" />
-                              <span className="text-sm">Loading metrics…</span>span>
-                    </div>div>
+                              <span className="text-sm">Loading metrics…</span>
+                    </div>
                 )}
             {!loading && hasMetrics && metrics && (
                     <>
-                              <h3 className="text-sm font-semibold text-violet-400 uppercase tracking-wide mb-1">
+                              <h3 className="text-sm font-semibold text-[#888888] uppercase tracking-wide mb-1">
                                           Performance Metrics
-                              </h3>h3>
-                              <p className="text-xs text-violet-300 mb-3 flex items-center gap-1">
-                                          <span>📊</span>span> Campaign performance stats · Attribution:{' '}
-                                          <span className="font-semibold text-violet-400">Click-through</span>span>
-                              </p>p>
+                              </h3>
+                              <p className="text-xs text-[#888888] mb-3 flex items-center gap-1">
+                                          <span>📊</span> Campaign performance stats · Attribution:{' '}
+                                          <span className="font-semibold text-[#888888]">Click-through</span>
+                              </p>
                               <div className="grid grid-cols-2 gap-3">
-                                {metrics.attempted  !== undefined && <MetricCard label="Attempted"     value={metrics.attempted.toLocaleString()}              icon="🚀" color="text-violet-600" />}
-                                {metrics.sent       !== undefined && <MetricCard label="Sent"          value={metrics.sent.toLocaleString()}                   icon="📤" color="text-violet-600" />}
+                                {metrics.attempted  !== undefined && <MetricCard label="Attempted"     value={metrics.attempted.toLocaleString()}              icon="🚀" color="text-[#888888]" />}
+                                {metrics.sent       !== undefined && <MetricCard label="Sent"          value={metrics.sent.toLocaleString()}                   icon="📤" color="text-[#888888]" />}
                                 {metrics.failedToSend !== undefined && <MetricCard label="Failed to Send" value={metrics.failedToSend.toLocaleString()}        icon="⚠️" color="text-rose-500"   />}
-                                {metrics.impressions !== undefined && <MetricCard label="Impressions"  value={metrics.impressions.toLocaleString()}            icon="👁️" color="text-violet-600" />}
+                                {metrics.impressions !== undefined && <MetricCard label="Impressions"  value={metrics.impressions.toLocaleString()}            icon="👁️" color="text-[#888888]" />}
                                 {metrics.clicks     !== undefined && <MetricCard label="Clicked"       value={metrics.clicks.toLocaleString()}                 icon="🖱️" color="text-sky-600"    />}
                                 {metrics.ctr        !== undefined && <MetricCard label="CTR"           value={`${metrics.ctr.toFixed(2)}%`}                   icon="📈" color="text-sky-600"    />}
-                              </div>div>
+                              </div>
                     </>>
                   )}
-          </div>div>
+          </div>
         );
 }</></div>
