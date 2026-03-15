@@ -10,13 +10,13 @@ import {
 } from '@/lib/taxonomy';
 
 interface SegmentFilter {
-    name: string
+    name: string;
     operator?: string;
     value?: string | number | boolean;
     category?: string;
     data_type?: string;
     negate?: boolean;
-
+}
 
 interface CampaignInfo {
     targetAudience?: string;
