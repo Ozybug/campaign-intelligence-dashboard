@@ -1,156 +1,222 @@
-@tailwind base;
+tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-* { box-sizing: border-box; padding: 0; margin: 0; }
+* {
+      box-sizing: border-box;
+      padding: 0;
+      margin: 0;
+}
 
 html, body {
-    max-width: 100vw;
-    overflow-x: hidden;
-    background-color: #121212;
-    color: #E0E0E0;
+      max-width: 100vw;
+      overflow-x: hidden;
+      background-color: #121212;
+      color: #E0E0E0;
 }
 
 /* FullCalendar Dark Theme */
-.calendar-container .fc { color: #E0E0E0; }
+.calendar-container .fc {
+      color: #E0E0E0;
+      background-color: #1e1e1e !important;
+}
+
+.calendar-container .fc-view-harness,
+.calendar-container .fc-view-harness-active {
+      background-color: #1e1e1e !important;
+}
 
 .calendar-container .fc-toolbar-title {
-    color: #E0E0E0 !important;
-    font-size: 1.1rem !important;
-    font-weight: 600 !important;
+      color: #E0E0E0 !important;
+      font-size: 1.1rem !important;
+      font-weight: 600 !important;
 }
 
 .calendar-container .fc-button {
-    background-color: #2a2a2a !important;
-    border-color: #444444 !important;
-    color: #E0E0E0 !important;
-    font-weight: 500 !important;
+      background-color: #2a2a2a !important;
+      border-color: #444444 !important;
+      color: #E0E0E0 !important;
+      font-weight: 500 !important;
 }
 
 .calendar-container .fc-button:hover {
-    background-color: #333333 !important;
-    border-color: #555555 !important;
+      background-color: #333333 !important;
+      border-color: #555555 !important;
 }
 
 .calendar-container .fc-button-active {
-    background-color: #444444 !important;
-    border-color: #555555 !important;
-    color: #E0E0E0 !important;
+      background-color: #444444 !important;
+      border-color: #555555 !important;
+      color: #E0E0E0 !important;
 }
 
 .calendar-container .fc-daygrid-day-number {
-    color: #B0B0B0 !important;
+      color: #B0B0B0 !important;
 }
 
 .calendar-container .fc-col-header-cell-cushion {
-    color: #B0B0B0 !important;
-    font-weight: 600 !important;
+      color: #B0B0B0 !important;
+      font-weight: 600 !important;
 }
 
 .calendar-container .fc-scrollgrid {
-    border-color: #444444 !important;
+      border-color: #444444 !important;
+      background-color: #1e1e1e !important;
 }
 
 .calendar-container .fc-scrollgrid-section > * {
-    border-color: #444444 !important;
+      border-color: #444444 !important;
+}
+
+.calendar-container .fc-scrollgrid td,
+.calendar-container .fc-scrollgrid th {
+      border-color: #444444 !important;
 }
 
 .calendar-container .fc-daygrid-day-frame {
-    background-color: #1e1e1e !important;
+      background-color: #1e1e1e !important;
 }
 
 .calendar-container .fc-daygrid-day.fc-day-today .fc-daygrid-day-frame {
-    background-color: rgba(68, 68, 68, 0.25) !important;
+      background-color: rgba(68, 68, 68, 0.25) !important;
 }
 
 .calendar-container .fc-daygrid-day:hover .fc-daygrid-day-frame {
-    background-color: #252525 !important;
+      background-color: #252525 !important;
 }
 
 .calendar-container .fc-event {
-    font-size: 0.75rem !important;
-    padding: 1px 4px !important;
-    border-radius: 4px !important;
+      font-size: 0.75rem !important;
+      padding: 1px 4px !important;
+      border-radius: 4px !important;
 }
 
 .calendar-container .fc-col-header-cell {
-    background-color: #1a1a1a !important;
+      background-color: #1a1a1a !important;
 }
 
 .calendar-container .fc-day-other .fc-daygrid-day-frame {
-    background-color: #181818 !important;
+      background-color: #181818 !important;
 }
 
 .calendar-container .fc-day-other .fc-daygrid-day-number {
-    color: #888888 !important;
+      color: #888888 !important;
 }
 
+/* Override any remaining white/light backgrounds in FullCalendar */
+.calendar-container .fc-daygrid-body,
+.calendar-container .fc-daygrid-body table,
+.calendar-container table {
+      background-color: #1e1e1e !important;
+}
+
+.calendar-container .fc-theme-standard td,
+.calendar-container .fc-theme-standard th,
+.calendar-container .fc-theme-standard .fc-scrollgrid {
+      border-color: #444444 !important;
+}
+
+/* Today cell — override any lavender/light highlight */
+.calendar-container .fc-day-today,
+.calendar-container .fc-day-today .fc-daygrid-day-frame,
+.calendar-container td.fc-day-today > div {
+      background-color: rgba(68, 68, 68, 0.25) !important;
+      background: rgba(68, 68, 68, 0.25) !important;
+}
 
 /* ── Tailwind Component Dark Theme Overrides ── */
 
-/* White card/panel backgrounds → dark */
+/* Force all white/near-white backgrounds to dark */
+.bg-white {
+      background-color: #1e1e1e !important;
+}
+
+/* Light card backgrounds → dark */
+.bg-gray-50, .bg-gray-100, .bg-slate-50, .bg-slate-100 {
+      background-color: #2a2a2a !important;
+}
+
+/* Amber/warning light backgrounds → dark */
+.bg-amber-50 {
+      background-color: #2a1a00 !important;
+}
+
+/* Emerald/green light backgrounds → dark */
+.bg-emerald-50 {
+      background-color: #0a1f15 !important;
+}
+
+/* Fuchsia/pink light backgrounds → dark */
+.bg-fuchsia-50 {
+      background-color: #1a0a1f !important;
+}
+
+/* Purple light backgrounds → dark */
+.bg-purple-50, .bg-purple-100, .bg-violet-50, .bg-violet-100 {
+      background-color: #1a1030 !important;
+}
+
+/* Indigo light backgrounds → dark */
+.bg-indigo-50, .bg-indigo-100 {
+      background-color: #0f1530 !important;
+}
+
+/* Light borders → dark equivalents */
+.border-amber-200 {
+      border-color: #7a4a00 !important;
+}
+.border-emerald-100 {
+      border-color: #1a5c35 !important;
+}
+.border-fuchsia-100 {
+      border-color: #5c1a7a !important;
+}
+.border-violet-300, .border-violet-400, .border-violet-500, .border-purple-300 {
+      border-color: #444444 !important;
+}
+.border-slate-200 {
+      border-color: #444444 !important;
+}
+
+/* Light text on now-dark backgrounds → readable */
+.text-amber-600 {
+      color: #f59e0b !important;
+}
+.text-amber-500 {
+      color: #fbbf24 !important;
+}
+.text-purple-500, .text-purple-600 {
+      color: #888888 !important;
+}
+.text-slate-800, .text-slate-900 {
+      color: #E0E0E0 !important;
+}
+.text-indigo-500 {
+      color: #818CF8 !important;
+}
+
+/* ── Tailwind Component Dark Theme Overrides ── */
 .bg-[#1e1e1e] {
-    background-color: #1e1e1e !important;
-        color: #E0E0E0 !important;
-        }
+      background-color: #1e1e1e !important;
+      color: #E0E0E0 !important;
+}
 
-        /* Gray/slate light backgrounds → dark */
-        .bg-gray-50,
-        .bg-gray-100,
-        .bg-slate-50,
-        .bg-[#2a2a2a] {
-            background-color: #2a2a2a !important;
-            }
+.bg-[#2a2a2a] {
+      background-color: #2a2a2a !important;
+}
 
-            /* Violet/purple light backgrounds → dark */
-            .bg-[#2a2a2a],
-            .bg-[#2a2a2a],
-            .bg-purple-50,
-            .bg-purple-100 {
-                background-color: #2a2a2a !important;
-                }
+.border-[#444444] {
+      border-color: #444444 !important;
+}
 
-                /* violet-100 borders → dark border */
-                .border-[#444444],
-                .border-[#444444] {
-                    border-color: #444444 !important;
-                    }
+.text-[#888888] {
+      color: #888888 !important;
+}
 
-                    /* Violet/purple border on filter tags → dark */
-                    .border-violet-300,
-                    .border-violet-400,
-                    .border-violet-500,
-                    .border-purple-300 {
-                        border-color: #444444 !important;
-                        }
+.text-[#B0B0B0] {
+      color: #B0B0B0 !important;
+}
 
-                        /* Violet/purple text → accent gray */
-                        .text-[#888888],
-                        .text-[#888888],
-                        .text-[#888888],
-                        .text-[#888888],
-                        .text-purple-500,
-                        .text-purple-600 {
-                            color: #888888 !important;
-                            }
-
-                            /* Slate text → secondary/primary text */
-                            .text-[#B0B0B0],
-                            .text-[#B0B0B0],
-                            .text-[#B0B0B0] {
-                                color: #B0B0B0 !important;
-                                }
-
-                                .text-[#E0E0E0],
-                                .text-slate-800,
-                                .text-slate-900 {
-                                    color: #E0E0E0 !important;
-                                    }
-
-                                    /* Today cell — override inner frame lavender */
-                                    .calendar-container .fc-day-today,
-                                    .calendar-container .fc-day-today .fc-daygrid-day-frame,
-                                    .calendar-container td.fc-day-today > div {
-                                        background-color: #1e1e1e !important;
-                                            background: #1e1e1e !important;
-                                            }
+.text-[#E0E0E0] {
+      color: #E0E0E0 !important;
+}
