@@ -16,7 +16,7 @@ function MatIcon({ name, className = '' }: { name: string; className?: string })
                   style={{ fontSize: '1.25rem', lineHeight: 1, verticalAlign: 'middle' }}
                 >
             {name}
-          </span>span>
+          </span>
         );
 }
 
