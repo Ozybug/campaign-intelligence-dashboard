@@ -228,8 +228,8 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         )}
       </div>
 
-      {/* Row 4: Message content */}
-      <div className="border-t border-[#2a2a2a] pt-3 space-y-2">
+      {/* Row 4: Message content — Push only */}
+      {f.channel === 'Push' && <div className="border-t border-[#2a2a2a] pt-3 space-y-2">
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
             Message Title <span className="text-rose-400">*</span>
@@ -252,7 +252,7 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
               className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors resize-none" />
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* Row 5: Actions */}
       <div className="flex flex-wrap gap-2 pt-1 border-t border-[#2a2a2a]">
@@ -278,7 +278,7 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
             Delete
           </button>
         )}
-        <button type="submit" disabled={!f.title.trim() || !f.startDate || !f.messageTitle.trim()}
+        <button type="submit" disabled={!f.title.trim() || !f.startDate || (f.channel === 'Push' && !f.messageTitle.trim())}
           className="ml-auto flex items-center gap-1.5 px-4 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors">
           <span className="material-symbols-outlined" style={{ fontSize: '0.9rem', lineHeight: 1 }}>
             {isEdit ? 'save' : 'add'}
@@ -342,7 +342,7 @@ export default function SchematicPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.startDate || !form.messageTitle.trim()) return;
+    if (!form.title.trim() || !form.startDate || (form.channel === 'Push' && !form.messageTitle.trim())) return;
 
     const existing = campaigns.find(c => c.id === editId);
     const campaign: SchematicCampaign = {
