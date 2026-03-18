@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import CampaignDetails from '@/components/CampaignDetails';
 import MetricsChart from '@/components/MetricsChart';
-import DashboardStats from '@/components/DashboardStats';
 import DestinationVisitorsTable from '@/components/DestinationVisitorsTable';
 import { CalendarEvent, CampaignMetrics, CollisionWarning } from '@/types/campaign';
 
@@ -51,7 +50,6 @@ export default function Home() {
         </div>
       </div>
       <div className="max-w-7xl mx-auto p-6">
-        <DashboardStats />
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2">
             <h2 className="text-lg font-semibold text-[#E0E0E0] mb-3">Campaign Calendar</h2>

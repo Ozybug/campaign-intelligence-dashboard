@@ -38,7 +38,7 @@ export default function DashboardStats() {
   
     const items = [
       {
-              label: 'TOTAL CAMPAIGNS',
+              label: 'Total Campaigns',
               value: stats?.totalCampaigns ?? '—',
               icon: 'calendar_month',
               cardClass: 'bg-[#1e1e1e] border border-[#444444]',
@@ -47,7 +47,7 @@ export default function DashboardStats() {
               iconClass: 'text-[#888888]',
       },
       {
-              label: 'ACTIVE NOW',
+              label: 'Active Now',
               value: stats?.activeCampaigns ?? '—',
               icon: 'radio_button_checked',
               cardClass: 'bg-[#1e1e1e] border border-[#444444]',
@@ -56,7 +56,7 @@ export default function DashboardStats() {
               iconClass: 'text-emerald-400',
       },
       {
-              label: 'CHANNELS',
+              label: 'Channels',
               value: stats?.channels.length ?? '—',
               icon: 'hub',
               cardClass: 'bg-[#1e1e1e] border border-[#444444]',
@@ -64,19 +64,10 @@ export default function DashboardStats() {
               valueClass: 'text-[#E0E0E0]',
               iconClass: 'text-[#888888]',
       },
-      {
-              label: 'COLLISIONS',
-              value: stats?.collisions ?? '—',
-              icon: 'check_circle',
-              cardClass: 'bg-[#1e1e1e] border border-[#444444]',
-              labelClass: 'text-[#888888]',
-              valueClass: 'text-[#E0E0E0]',
-              iconClass: 'text-emerald-400',
-      },
         ];
   
     return (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-3 gap-4 mb-6">
             {items.map((item) => (
                     <div key={item.label} className={`${item.cardClass} rounded-xl p-4 shadow-sm`}>
                               <div className="flex items-center justify-between mb-2">
