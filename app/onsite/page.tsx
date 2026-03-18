@@ -18,12 +18,13 @@ interface OnSiteCampaign {
   brand: Brand;
   title: string;
   osmTarget: OsmTarget;
-  osmTargetNames: string[];   // chips — only for Destination / Property
+  osmTargetNames: string[];        // chips — only for Destination / Property
   redirectTarget: RedirectTarget;
+  redirectTargetNames: string[];   // chips — shown for all redirect targets except Homepage
   priority: OsmPriority;
   status: OsmStatus;
-  startDate: string;          // YYYY-MM-DD
-  endDate: string | null;     // null = indefinite
+  startDate: string;               // YYYY-MM-DD
+  endDate: string | null;          // null = indefinite
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -121,6 +122,8 @@ interface FormState {
   osmTargetNames: string[];
   osmInput: string;
   redirectTarget: RedirectTarget;
+  redirectTargetNames: string[];
+  redirectInput: string;
   priority: OsmPriority;
   status: OsmStatus;
   startDate: string;
@@ -129,7 +132,8 @@ interface FormState {
 const EMPTY: FormState = {
   brand: 'Zostel', title: '',
   osmTarget: 'Destination', osmTargetNames: [], osmInput: '',
-  redirectTarget: 'Destination', priority: 'Normal', status: 'Ideation',
+  redirectTarget: 'Destination', redirectTargetNames: [], redirectInput: '',
+  priority: 'Normal', status: 'Ideation',
   startDate: '', endDate: '',
 };
 
@@ -191,6 +195,10 @@ function FormBody({ f, set, onSubmit, onDelete, isEdit }: {
 }) {
   const addChip    = (v: string) => { set('osmTargetNames', [...f.osmTargetNames, v]); set('osmInput', ''); };
   const removeChip = (v: string) => set('osmTargetNames', f.osmTargetNames.filter(n => n !== v));
+
+  const addRedirectChip    = (v: string) => { set('redirectTargetNames', [...f.redirectTargetNames, v]); set('redirectInput', ''); };
+  const removeRedirectChip = (v: string) => set('redirectTargetNames', f.redirectTargetNames.filter(n => n !== v));
+  const needsRedirectName  = f.redirectTarget !== 'Homepage';
 
   return (
     <form onSubmit={onSubmit} className="space-y-3">
@@ -264,14 +272,33 @@ function FormBody({ f, set, onSubmit, onDelete, isEdit }: {
         )}
       </div>
 
-      {/* Row 3: Redirect Target · Priority · Status */}
+      {/* Row 3: Redirect Target (+ name chips) · Priority · Status */}
       <div className="flex flex-wrap gap-3 items-start">
-        <div>
-          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Redirect Target</p>
-          <select value={f.redirectTarget} onChange={e => set('redirectTarget', e.target.value as RedirectTarget)}
-            className="bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] outline-none focus:border-[#555] cursor-pointer transition-colors">
-            {REDIRECT_TARGETS.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
+        <div className="flex flex-wrap gap-3 items-start">
+          <div>
+            <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Redirect Target</p>
+            <select value={f.redirectTarget}
+              onChange={e => {
+                const v = e.target.value as RedirectTarget;
+                set('redirectTarget', v);
+                if (v === 'Homepage') { set('redirectTargetNames', []); set('redirectInput', ''); }
+              }}
+              className="bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] outline-none focus:border-[#555] cursor-pointer transition-colors">
+              {REDIRECT_TARGETS.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+          {needsRedirectName && (
+            <div className="flex-1 min-w-[220px]">
+              <ChipInput
+                label={`${f.redirectTarget} Name`}
+                names={f.redirectTargetNames}
+                input={f.redirectInput}
+                onInput={v  => set('redirectInput', v)}
+                onAdd={addRedirectChip}
+                onRemove={removeRedirectChip}
+              />
+            </div>
+          )}
         </div>
 
         <div>
@@ -391,7 +418,8 @@ export default function OnsitePage() {
     setForm({
       brand: c.brand, title: c.title,
       osmTarget: c.osmTarget, osmTargetNames: c.osmTargetNames, osmInput: '',
-      redirectTarget: c.redirectTarget, priority: c.priority, status: c.status,
+      redirectTarget: c.redirectTarget, redirectTargetNames: c.redirectTargetNames ?? [], redirectInput: '',
+      priority: c.priority, status: c.status,
       startDate: c.startDate, endDate: c.endDate ?? '',
     });
     setEditId(c.id);
@@ -406,17 +434,23 @@ export default function OnsitePage() {
         ? [...new Set([...form.osmTargetNames, form.osmInput.trim()])]
         : form.osmTargetNames;
 
+    const finalRedirectNames = form.redirectTarget === 'Homepage' ? [] :
+      form.redirectInput.trim()
+        ? [...new Set([...form.redirectTargetNames, form.redirectInput.trim()])]
+        : form.redirectTargetNames;
+
     const campaign: OnSiteCampaign = {
-      id:             editId ?? genId(),
-      brand:          form.brand,
-      title:          form.title.trim(),
-      osmTarget:      form.osmTarget,
-      osmTargetNames: finalNames,
-      redirectTarget: form.redirectTarget,
-      priority:       form.priority,
-      status:         form.status,
-      startDate:      form.startDate,
-      endDate:        form.endDate || null,
+      id:                  editId ?? genId(),
+      brand:               form.brand,
+      title:               form.title.trim(),
+      osmTarget:           form.osmTarget,
+      osmTargetNames:      finalNames,
+      redirectTarget:      form.redirectTarget,
+      redirectTargetNames: finalRedirectNames,
+      priority:            form.priority,
+      status:              form.status,
+      startDate:           form.startDate,
+      endDate:             form.endDate || null,
     };
     persist(editId
       ? campaigns.map(c => c.id === editId ? campaign : c)
@@ -580,7 +614,7 @@ export default function OnsitePage() {
                         <span style={{ color: hexToRgba(osmColor, 0.85) }}>{c.osmTarget}</span>
                         {c.osmTargetNames.length > 0 && <span className="text-[#444]">: {c.osmTargetNames.join(', ')}</span>}
                         <span className="mx-1 text-[#333]">·</span>
-                        <span>→ {c.redirectTarget}</span>
+                        <span>→ {c.redirectTarget}{c.redirectTargetNames?.length > 0 && <span className="text-[#444]">: {c.redirectTargetNames.join(', ')}</span>}</span>
                         <span className="mx-1 text-[#333]">·</span>
                         {formatDate(c.startDate)}{c.endDate ? ` → ${formatDate(c.endDate)}` : ' → ∞'}
                       </p>
