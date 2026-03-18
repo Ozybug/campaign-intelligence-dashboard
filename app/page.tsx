@@ -53,7 +53,7 @@ export default function Home() {
               className="flex items-center gap-1.5 px-3 py-1 bg-[#1e150a] text-amber-400 border border-amber-800 rounded-full text-xs font-medium hover:bg-amber-900/40 transition-colors"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '0.9rem', lineHeight: 1, verticalAlign: 'middle' }}>web_asset</span>
-              On-Site
+              On-Site Litematica
             </a>
           </div>
         </div>
