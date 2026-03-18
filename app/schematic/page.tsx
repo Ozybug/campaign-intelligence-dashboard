@@ -21,6 +21,9 @@ interface SchematicCampaign {
   startDate: string;      // YYYY-MM-DD
   endDate: string | null; // null = indefinite
   stage: Stage;
+  messageTitle?: string;  // push/email notification title
+  subtitle?: string;      // optional subtitle
+  messageBody?: string;   // message body / copy
   recurring?: {
     interval: RecInterval;
     customValue?: number;
@@ -66,12 +69,15 @@ function expandToEvents(c: SchematicCampaign): any[] {
     textColor:       color,
     classNames:      ['schematic-event'],
     extendedProps: {
-      isSchematic: true,
-      schematicId: c.id,
-      channel:     c.channel,
-      format:      c.format,
-      icon:        CHANNEL_ICONS[c.channel],
-      indefinite:  isIndefinite,
+      isSchematic:  true,
+      schematicId:  c.id,
+      channel:      c.channel,
+      format:       c.format,
+      icon:         CHANNEL_ICONS[c.channel],
+      indefinite:   isIndefinite,
+      messageTitle: c.messageTitle,
+      subtitle:     c.subtitle,
+      messageBody:  c.messageBody,
     },
   };
 
@@ -104,11 +110,13 @@ interface FormState {
   title: string; channel: SchChannel; format: SchFormat;
   startDate: string; endDate: string;
   interval: RecInterval; customValue: number; customUnit: CustomUnit;
+  messageTitle: string; subtitle: string; messageBody: string;
 }
 const EMPTY: FormState = {
   title: '', channel: 'Email', format: 'One Time',
   startDate: '', endDate: '',
   interval: 'weekly', customValue: 1, customUnit: 'week',
+  messageTitle: '', subtitle: '', messageBody: '',
 };
 
 // ── Form body (shared between add card and edit modal) ─────────────────────────
@@ -220,7 +228,33 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         )}
       </div>
 
-      {/* Row 4: Actions */}
+      {/* Row 4: Message content */}
+      <div className="border-t border-[#2a2a2a] pt-3 space-y-2">
+        <div>
+          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
+            Message Title <span className="text-rose-400">*</span>
+          </p>
+          <input type="text" placeholder='e.g. Work in NCR ❌ Workation in NCR ✅' value={f.messageTitle}
+            onChange={e => set('messageTitle', e.target.value)} required
+            className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors" />
+        </div>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Subtitle</p>
+            <input type="text" placeholder="Optional subtitle" value={f.subtitle}
+              onChange={e => set('subtitle', e.target.value)}
+              className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors" />
+          </div>
+          <div className="flex-1">
+            <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Message Body</p>
+            <textarea placeholder="e.g. Upgrade your work trips with our all-new Zostel Noida!" value={f.messageBody}
+              onChange={e => set('messageBody', e.target.value)} rows={2}
+              className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors resize-none" />
+          </div>
+        </div>
+      </div>
+
+      {/* Row 5: Actions */}
       <div className="flex flex-wrap gap-2 pt-1 border-t border-[#2a2a2a]">
         {/* Stage toggle — edit modal only */}
         {isEdit && currentStage === 'schematic' && onMarkLive && (
@@ -244,7 +278,7 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
             Delete
           </button>
         )}
-        <button type="submit" disabled={!f.title.trim() || !f.startDate}
+        <button type="submit" disabled={!f.title.trim() || !f.startDate || !f.messageTitle.trim()}
           className="ml-auto flex items-center gap-1.5 px-4 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors">
           <span className="material-symbols-outlined" style={{ fontSize: '0.9rem', lineHeight: 1 }}>
             {isEdit ? 'save' : 'add'}
@@ -298,6 +332,9 @@ export default function SchematicPage() {
       interval:    c.recurring?.interval    ?? 'weekly',
       customValue: c.recurring?.customValue ?? 1,
       customUnit:  c.recurring?.customUnit  ?? 'week',
+      messageTitle: c.messageTitle ?? '',
+      subtitle:     c.subtitle     ?? '',
+      messageBody:  c.messageBody  ?? '',
     });
     setEditId(c.id);
     setModalOpen(true);
@@ -305,17 +342,20 @@ export default function SchematicPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.startDate) return;
+    if (!form.title.trim() || !form.startDate || !form.messageTitle.trim()) return;
 
     const existing = campaigns.find(c => c.id === editId);
     const campaign: SchematicCampaign = {
-      id:        editId ?? genId(),
-      title:     form.title.trim(),
-      channel:   form.channel,
-      format:    form.format,
-      startDate: form.startDate,
-      endDate:   form.endDate || null,
-      stage:     existing?.stage ?? 'schematic', // preserve stage on edit
+      id:           editId ?? genId(),
+      title:        form.title.trim(),
+      channel:      form.channel,
+      format:       form.format,
+      startDate:    form.startDate,
+      endDate:      form.endDate || null,
+      stage:        existing?.stage ?? 'schematic',
+      messageTitle: form.messageTitle.trim() || undefined,
+      subtitle:     form.subtitle.trim()     || undefined,
+      messageBody:  form.messageBody.trim()  || undefined,
       ...(form.format === 'Recurring' && {
         recurring: {
           interval: form.interval,

@@ -42,6 +42,10 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
   const [stats, setStats]             = useState<StatsData | null>(null);
   const [allCampaigns, setAllCampaigns] = useState<any[]>([]);
   const [dateRange, setDateRange]     = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
+  const [schTooltip, setSchTooltip]   = useState<{
+    x: number; y: number;
+    messageTitle: string; subtitle?: string; messageBody?: string;
+  } | null>(null);
   const calendarRef = useRef<FullCalendar>(null);
 
   useEffect(() => {
@@ -386,7 +390,22 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
                 </div>
               );
             }}
+            eventMouseEnter={(info) => {
+              const ep = info.event.extendedProps;
+              if (ep?.isSchematic && ep?.messageTitle) {
+                const rect = info.el.getBoundingClientRect();
+                setSchTooltip({
+                  x: rect.left,
+                  y: rect.top,
+                  messageTitle: ep.messageTitle,
+                  subtitle:     ep.subtitle,
+                  messageBody:  ep.messageBody,
+                });
+              }
+            }}
+            eventMouseLeave={() => setSchTooltip(null)}
             eventClick={(info) => {
+              setSchTooltip(null);
               if (info.event.extendedProps?.isSchematic) {
                 onExtraEventClick?.(info.event.extendedProps.schematicId);
                 return;
@@ -398,6 +417,29 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
             height="auto"
             {...schematicStackingProps}
           />
+        </div>
+      )}
+
+      {/* -- Schematic event tooltip (fixed-position to escape FC overflow:hidden) -- */}
+      {schTooltip && (
+        <div
+          style={{
+            position: 'fixed',
+            left:      schTooltip.x,
+            top:       schTooltip.y - 8,
+            transform: 'translateY(-100%)',
+            zIndex:    9999,
+            pointerEvents: 'none',
+          }}
+          className="bg-[#1a1a2e] border border-[#3d2d6e] rounded-lg px-3 py-2 text-xs max-w-[260px] shadow-2xl"
+        >
+          <p className="font-semibold text-indigo-200 leading-snug mb-0.5">{schTooltip.messageTitle}</p>
+          {schTooltip.subtitle && (
+            <p className="text-[#888] leading-snug mb-0.5">{schTooltip.subtitle}</p>
+          )}
+          {schTooltip.messageBody && (
+            <p className="text-[#B0B0B0] leading-relaxed">{schTooltip.messageBody}</p>
+          )}
         </div>
       )}
     </div>
