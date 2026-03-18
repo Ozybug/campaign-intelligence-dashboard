@@ -86,9 +86,52 @@ html, body {
 }
 
 .calendar-container .fc-event {
-      font-size: 0.75rem !important;
-      padding: 1px 4px !important;
+      border-radius: 999px !important;
+      padding: 7px 6px !important;
+      cursor: pointer !important;
+      overflow: hidden !important;
+      transition: border-radius 0.12s ease !important;
+}
+
+/* Hide default FC title/time — we render custom content */
+.calendar-container .fc-event-title,
+.calendar-container .fc-event-time {
+      display: none !important;
+}
+
+/* Center the custom event chip content */
+.calendar-container .fc-event .fc-event-main {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+}
+
+/* Emoji shown by default; title hidden */
+.calendar-container .fc-event .event-emoji {
+      display: block;
+      font-size: 1rem;
+      line-height: 1;
+}
+.calendar-container .fc-event .event-title-text {
+      display: none;
+      font-size: 0.7rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+}
+
+/* On hover — swap: hide emoji, show title; soften border-radius */
+.calendar-container .fc-event:hover {
       border-radius: 4px !important;
+      z-index: 9 !important;
+      position: relative !important;
+}
+.calendar-container .fc-event:hover .event-emoji {
+      display: none;
+}
+.calendar-container .fc-event:hover .event-title-text {
+      display: block;
 }
 
 .calendar-container .fc-col-header-cell {
