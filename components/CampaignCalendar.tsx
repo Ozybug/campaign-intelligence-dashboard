@@ -22,6 +22,15 @@ const STAT_ITEMS = [
   { key: 'channels', label: 'Channels',          icon: 'hub',                  iconClass: 'text-[#888888]'   },
 ] as const;
 
+// Local YYYY-MM-DD string from a Date (avoids UTC-shift from toISOString)
+const toLocalDateStr = (date: Date) =>
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+const formatDisplayDate = (dateStr: string) => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+};
+
 export default function CampaignCalendar({ onSelect, collisions }: Props) {
   const [events, setEvents]           = useState<CalendarEvent[]>([]);
   const [loading, setLoading]         = useState(true);
@@ -29,6 +38,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
   const [activeChannel, setActiveChannel] = useState<Channel | null>(null);
   const [stats, setStats]             = useState<StatsData | null>(null);
   const [allCampaigns, setAllCampaigns] = useState<any[]>([]);
+  const [dateRange, setDateRange]     = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
   const calendarRef = useRef<FullCalendar>(null);
 
   useEffect(() => {
@@ -88,20 +98,50 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
   const clearAll = () => { setActiveGroup(null); setActiveChannel(null); };
   const hasActiveFilter = activeGroup !== null || activeChannel !== null;
 
+  // -- Date-range click logic --------------------------------------------------
+  const handleDateClick = (info: { dateStr: string }) => {
+    const clicked = info.dateStr; // YYYY-MM-DD
+    setDateRange(prev => {
+      if (!prev.start || prev.end) {
+        // Idle or complete range → start fresh
+        return { start: clicked, end: null };
+      }
+      // Have start, no end yet
+      if (clicked === prev.start) return { start: null, end: null }; // deselect
+      if (clicked < prev.start) return { start: clicked, end: prev.start }; // swap
+      return { start: prev.start, end: clicked };
+    });
+  };
+
+  const clearDateRange = () => setDateRange({ start: null, end: null });
+  const hasDateRange = dateRange.start !== null;
+
   // -- Visible groups (only those with at least one non-excluded channel) ------
   const visibleGroups = GROUPS
     .map(g => ({ ...g, channels: g.channels.filter(c => !EXCLUDED_CHANNELS.has(c)) }))
     .filter(g => g.channels.length > 0);
 
-  // -- Display stats: total reflects active filter, active/channels are always global --
+  // -- Display stats: total reflects active channel/group + date range filters --
   const filteredTotal = (() => {
     if (!allCampaigns.length) return stats?.total ?? null;
-    if (activeChannel) return allCampaigns.filter(c => c.channel?.toLowerCase() === activeChannel.toLowerCase()).length;
-    if (activeGroup) {
+    let base = allCampaigns;
+    // Channel / group filter
+    if (activeChannel) {
+      base = base.filter(c => c.channel?.toLowerCase() === activeChannel.toLowerCase());
+    } else if (activeGroup) {
       const groupChannels = getChannelsForGroup(activeGroup as any).map(c => c.id.toLowerCase());
-      return allCampaigns.filter(c => groupChannels.includes(c.channel?.toLowerCase())).length;
+      base = base.filter(c => groupChannels.includes(c.channel?.toLowerCase()));
     }
-    return allCampaigns.length;
+    // Date range filter (only when both ends are set)
+    if (dateRange.start && dateRange.end) {
+      base = base.filter(c => {
+        const cStart = (c.startDate || '').slice(0, 10);
+        const cEnd   = (c.endDate || c.startDate || '').slice(0, 10);
+        // Overlap: campaign overlaps range if it starts before rangeEnd AND ends after rangeStart
+        return cStart <= dateRange.end! && cEnd >= dateRange.start!;
+      });
+    }
+    return base.length;
   })();
   const displayStats = stats ? { ...stats, total: filteredTotal ?? stats.total } : null;
 
@@ -224,6 +264,37 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
         </div>
       </div>
 
+      {/* -- Date range indicator -------------------------------------------- */}
+      {hasDateRange && (
+        <div className="mb-3 flex items-center gap-2 px-1 py-1.5 bg-[#1a1030] border border-[#3d2d6e] rounded-lg">
+          <span
+            className="material-symbols-outlined text-violet-400 flex-shrink-0"
+            style={{ fontSize: '0.85rem', lineHeight: 1 }}
+          >
+            date_range
+          </span>
+          {dateRange.end ? (
+            <span className="text-xs text-[#B0B0B0]">
+              <span className="text-violet-300 font-semibold">{formatDisplayDate(dateRange.start!)}</span>
+              <span className="text-[#555555] mx-1.5">→</span>
+              <span className="text-violet-300 font-semibold">{formatDisplayDate(dateRange.end)}</span>
+            </span>
+          ) : (
+            <span className="text-xs text-[#888888] italic">
+              From <span className="text-violet-300 not-italic font-semibold">{formatDisplayDate(dateRange.start!)}</span>
+              <span className="ml-1.5 text-[#555555]">— click an end date</span>
+            </span>
+          )}
+          <button
+            onClick={clearDateRange}
+            className="ml-auto flex items-center text-[#555555] hover:text-[#cccccc] transition-colors"
+            title="Clear date filter"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '0.85rem', lineHeight: 1 }}>close</span>
+          </button>
+        </div>
+      )}
+
       {/* -- Collision warnings ---------------------------------------------- */}
       {collisions.length > 0 && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -246,7 +317,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
           Loading campaigns...
         </div>
       ) : (
-        <div className="calendar-container">
+        <div className={`calendar-container${dateRange.start && !dateRange.end ? ' selecting-end' : ''}`}>
           <FullCalendar
             ref={calendarRef}
             plugins={[dayGridPlugin, interactionPlugin]}
@@ -258,6 +329,20 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
             }}
             buttonText={{ today: 'Today', month: 'Month', week: 'Week' }}
             events={filteredEvents as any}
+            dateClick={handleDateClick}
+            dayCellClassNames={(arg) => {
+              const dateStr = toLocalDateStr(arg.date);
+              const classes: string[] = [];
+              const { start, end } = dateRange;
+              if (start && !end) {
+                if (dateStr === start) classes.push('date-range-start-only');
+              } else if (start && end) {
+                if (dateStr === start)                    classes.push('date-range-start');
+                else if (dateStr === end)                 classes.push('date-range-end');
+                else if (dateStr > start && dateStr < end) classes.push('date-range-in');
+              }
+              return classes;
+            }}
             eventContent={(arg) => {
               const channel = arg.event.extendedProps?.channel || '';
               const entry = CHANNEL_LEGEND.find(l => l.channel === channel);

@@ -167,6 +167,54 @@ html, body {
       background: rgba(68, 68, 68, 0.25) !important;
 }
 
+/* ── Date range selection ─────────────────────────────────────────────────── */
+
+/* Make the day frame transparent for range cells so the td background shows */
+.calendar-container .fc-daygrid-day.date-range-start-only .fc-daygrid-day-frame,
+.calendar-container .fc-daygrid-day.date-range-start .fc-daygrid-day-frame,
+.calendar-container .fc-daygrid-day.date-range-end .fc-daygrid-day-frame,
+.calendar-container .fc-daygrid-day.date-range-in .fc-daygrid-day-frame,
+.calendar-container .fc-daygrid-day.date-range-start-only:hover .fc-daygrid-day-frame,
+.calendar-container .fc-daygrid-day.date-range-start:hover .fc-daygrid-day-frame,
+.calendar-container .fc-daygrid-day.date-range-end:hover .fc-daygrid-day-frame,
+.calendar-container .fc-daygrid-day.date-range-in:hover .fc-daygrid-day-frame {
+  background-color: transparent !important;
+}
+
+/* Single start dot (first click, awaiting end) */
+.calendar-container .fc-daygrid-day.date-range-start-only {
+  background-color: rgba(139, 92, 246, 0.28) !important;
+  outline: 2px solid rgba(139, 92, 246, 0.5) !important;
+  outline-offset: -2px !important;
+}
+
+/* Start and end anchor cells */
+.calendar-container .fc-daygrid-day.date-range-start,
+.calendar-container .fc-daygrid-day.date-range-end {
+  background-color: rgba(139, 92, 246, 0.3) !important;
+}
+
+/* In-between cells */
+.calendar-container .fc-daygrid-day.date-range-in {
+  background-color: rgba(139, 92, 246, 0.1) !important;
+}
+
+/* Highlight date numbers for start/end */
+.calendar-container .fc-daygrid-day.date-range-start .fc-daygrid-day-number,
+.calendar-container .fc-daygrid-day.date-range-end .fc-daygrid-day-number,
+.calendar-container .fc-daygrid-day.date-range-start-only .fc-daygrid-day-number {
+  color: #a78bfa !important;
+  font-weight: 700 !important;
+}
+
+/* Crosshair cursor while selecting end date */
+.calendar-container.selecting-end .fc-daygrid-day {
+  cursor: crosshair !important;
+}
+.calendar-container.selecting-end .fc-daygrid-day:hover .fc-daygrid-day-frame {
+  background-color: rgba(139, 92, 246, 0.08) !important;
+}
+
 /* ── Tailwind Component Dark Theme Overrides ── */
 
 /* Force all white/near-white backgrounds to dark */
