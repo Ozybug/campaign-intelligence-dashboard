@@ -146,7 +146,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                   style={{ backgroundColor: color, opacity: isDimmed ? 0.4 : 1 }}
                 />
-                <span>{icon}</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '0.95rem', lineHeight: 1, verticalAlign: 'middle' }}>{icon}</span>
                 <span>{channel}</span>
                 {isActive && <span className="ml-0.5 text-[#B0B0B0] font-bold text-xs">×</span>}
               </button>
