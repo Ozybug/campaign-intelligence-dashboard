@@ -94,15 +94,23 @@ function expandOnsiteToEvent(c: OnSiteCampaign): any {
   const color        = OSM_COLORS[c.osmTarget];
   const endDate      = c.endDate ?? toDateStr(addYears(new Date(), 1));
   const exclusiveEnd = toDateStr(addDays(new Date(endDate + 'T00:00:00'), 1));
+
+  const isLive      = c.status === 'Live';
+  const isScheduled = c.status === 'Scheduled';
+  // Live      → solid fill, pill shape, full opacity
+  // Scheduled → solid border, pill shape, low opacity fill
+  // Ideation  → dashed border, rectangular, standard opacity
+  const bgOpacity = isLive ? 1.0 : isScheduled ? 0.10 : 0.18;
+
   return {
     id:    c.id,
     title: c.title,
     start: c.startDate,
     end:   exclusiveEnd,
-    backgroundColor: hexToRgba(color, 0.18),
+    backgroundColor: hexToRgba(color, bgOpacity),
     borderColor:     color,
-    textColor:       color,
-    classNames: ['schematic-event'],
+    textColor:       isLive ? '#FFFFFF' : color,
+    classNames: [],   // CampaignCalendar eventClassNames handles class per osmStatus
     extendedProps: {
       isSchematic:    true,           // reuses schematic event rendering in CampaignCalendar
       schematicId:    c.id,
@@ -110,6 +118,7 @@ function expandOnsiteToEvent(c: OnSiteCampaign): any {
       osmTarget:      c.osmTarget,
       osmTargetNames: c.osmTargetNames,
       brand:          c.brand,
+      osmStatus:      c.status,
     },
   };
 }
@@ -487,7 +496,7 @@ export default function OnsitePage() {
       return a.startDate.localeCompare(b.startDate);
     });
 
-  const extraEvents  = campaigns.map(expandOnsiteToEvent);
+  const extraEvents  = campaigns.filter(c => c.status !== 'Canned').map(expandOnsiteToEvent);
   const editCampaign = campaigns.find(c => c.id === editId);
   const liveCnt      = campaigns.filter(c => c.status === 'Live').length;
   const schedCnt     = campaigns.filter(c => c.status === 'Scheduled').length;

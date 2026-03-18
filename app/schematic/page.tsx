@@ -219,6 +219,9 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
     ? computeOccurrences({ startDate: f.startDate, endDate: f.endDate, interval: f.interval, customValue: f.customValue, customUnit: f.customUnit })
     : null; // null = "not yet computable"
 
+  const [blackoutOpen, setBlackoutOpen] = useState(false);
+  const [occOpen,      setOccOpen]      = useState(false);
+
   const toggleBlackout = (date: string) => {
     const next = f.blackoutDates.includes(date)
       ? f.blackoutDates.filter(d => d !== date)
@@ -368,63 +371,105 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         </div>
       </div>
 
-      {/* Row 3.5: Blackout Dates */}
+      {/* Row 3.5: Blackout Dates + Scheduled Occurrences — aligned, both collapsible */}
       <div className="border-t border-[#2a2a2a] pt-3">
-        <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-2">
-          Blackout Dates
-          <span className="ml-1.5 text-[#555] font-normal normal-case tracking-normal">— campaign paused on these days</span>
-        </p>
         <div className="flex flex-wrap gap-6 items-start">
 
-          {/* Multi-date picker */}
-          <BlackoutDatePicker
-            selected={f.blackoutDates}
-            onChange={dates => set('blackoutDates', dates)}
-            minDate={f.startDate || undefined}
-          />
+          {/* ── BLACKOUT DATES ── */}
+          <div className="flex-1 min-w-[180px] max-w-[280px]">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <button
+                type="button"
+                onClick={() => setBlackoutOpen(o => !o)}
+                className="flex items-center gap-0.5 text-[10px] font-semibold text-[#888] tracking-wider uppercase hover:text-[#aaa] transition-colors text-left"
+              >
+                Blackout Dates
+                {f.blackoutDates.length > 0 && (
+                  <span className="ml-1 text-rose-500">· {f.blackoutDates.length}</span>
+                )}
+                <span className="ml-1 font-normal normal-case tracking-normal text-[#555]">— click to add</span>
+              </button>
+              {/* compact calendar picker — icon only, no chips */}
+              <BlackoutDatePicker
+                selected={f.blackoutDates}
+                onChange={dates => set('blackoutDates', dates)}
+                minDate={f.startDate || undefined}
+                compact
+              />
+            </div>
 
-          {/* Recurring occurrence list */}
-          {f.format === 'Recurring' && (
-            <div className="flex-1 min-w-[200px] max-w-[280px]">
-              <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
-                Scheduled Occurrences
-                <span className="ml-1 text-[#555] font-normal normal-case tracking-normal">— click to blackout</span>
-              </p>
-              {!f.startDate ? (
-                <p className="text-[11px] text-[#555] italic py-2 px-1">
-                  Select start date and repeats first
-                </p>
+            {blackoutOpen && (
+              f.blackoutDates.length === 0 ? (
+                <p className="text-[11px] text-[#555] italic py-2 px-1">No blackout dates added</p>
               ) : (
                 <div
                   className="overflow-y-auto border border-[#333] rounded-lg bg-[#161616]"
-                  style={{ height: '160px' }} // fixed height — 5 rows × 32px
+                  style={{ height: '160px' }}
                 >
-                  {occurrences && occurrences.length > 0 ? occurrences.map(date => {
-                    const isBlacked = f.blackoutDates.includes(date);
-                    return (
-                      <button
-                        key={date}
-                        type="button"
-                        onClick={() => toggleBlackout(date)}
-                        className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs border-b border-[#222] last:border-0 transition-colors ${
-                          isBlacked
-                            ? 'bg-rose-950/40 text-rose-400'
-                            : 'text-[#B0B0B0] hover:bg-[#252525] hover:text-[#E0E0E0]'
-                        }`}
-                      >
-                        <span>{formatDate(date)}</span>
-                        {isBlacked && (
-                          <span className="material-symbols-outlined text-rose-500" style={{ fontSize: '0.75rem', lineHeight: 1 }}>event_busy</span>
-                        )}
+                  {f.blackoutDates.map(date => (
+                    <div key={date}
+                      className="w-full flex items-center justify-between px-3 py-2 text-xs border-b border-[#222] last:border-0 bg-rose-950/30"
+                    >
+                      <span className="text-rose-400">{formatDate(date)}</span>
+                      <button type="button" onClick={() => toggleBlackout(date)}
+                        className="text-rose-700 hover:text-rose-400 transition-colors">
+                        <span className="material-symbols-outlined" style={{ fontSize: '0.75rem', lineHeight: 1 }}>close</span>
                       </button>
-                    );
-                  }) : (
-                    <p className="text-[#555] text-xs text-center py-6 italic">No occurrences in range</p>
-                  )}
+                    </div>
+                  ))}
                 </div>
-              )}
-              {f.endDate === '' && f.startDate && (
-                <p className="text-[9px] text-[#555] mt-1">Showing next 3 months — set end date to see more</p>
+              )
+            )}
+          </div>
+
+          {/* ── SCHEDULED OCCURRENCES (Recurring only) ── */}
+          {f.format === 'Recurring' && (
+            <div className="flex-1 min-w-[180px] max-w-[280px]">
+              <button
+                type="button"
+                onClick={() => setOccOpen(o => !o)}
+                className="flex items-center gap-0.5 text-[10px] font-semibold text-[#888] tracking-wider uppercase hover:text-[#aaa] transition-colors text-left mb-1.5"
+              >
+                Scheduled Occurrences
+                <span className="ml-1 font-normal normal-case tracking-normal text-[#555]">— click to blackout</span>
+              </button>
+
+              {occOpen && (
+                <>
+                  {!f.startDate ? (
+                    <p className="text-[11px] text-[#555] italic py-2 px-1">
+                      Select start date and repeats first
+                    </p>
+                  ) : (
+                    <div
+                      className="overflow-y-auto border border-[#333] rounded-lg bg-[#161616]"
+                      style={{ height: '160px' }}
+                    >
+                      {occurrences && occurrences.length > 0 ? occurrences.map(date => {
+                        const isBlacked = f.blackoutDates.includes(date);
+                        return (
+                          <button key={date} type="button" onClick={() => toggleBlackout(date)}
+                            className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs border-b border-[#222] last:border-0 transition-colors ${
+                              isBlacked
+                                ? 'bg-rose-950/40 text-rose-400'
+                                : 'text-[#B0B0B0] hover:bg-[#252525] hover:text-[#E0E0E0]'
+                            }`}
+                          >
+                            <span>{formatDate(date)}</span>
+                            {isBlacked && (
+                              <span className="material-symbols-outlined text-rose-500" style={{ fontSize: '0.75rem', lineHeight: 1 }}>event_busy</span>
+                            )}
+                          </button>
+                        );
+                      }) : (
+                        <p className="text-[#555] text-xs text-center py-6 italic">No occurrences in range</p>
+                      )}
+                    </div>
+                  )}
+                  {f.endDate === '' && f.startDate && (
+                    <p className="text-[9px] text-[#555] mt-1">Showing next 3 months — set end date to see more</p>
+                  )}
+                </>
               )}
             </div>
           )}

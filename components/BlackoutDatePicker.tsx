@@ -21,9 +21,10 @@ interface Props {
   selected: string[];          // YYYY-MM-DD array of blacked-out dates
   onChange: (dates: string[]) => void;
   minDate?: string;            // YYYY-MM-DD — days before this are disabled
+  compact?: boolean;           // icon-only trigger, no chip list
 }
 
-export default function BlackoutDatePicker({ selected, onChange, minDate }: Props) {
+export default function BlackoutDatePicker({ selected, onChange, minDate, compact }: Props) {
   const today      = new Date();
   const [viewYear,  setViewYear]  = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -83,25 +84,40 @@ export default function BlackoutDatePicker({ selected, onChange, minDate }: Prop
   return (
     <div ref={ref} className="relative">
       {/* Trigger button */}
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className={`flex items-center gap-2 bg-[#161616] border rounded-lg px-3 py-1.5 text-sm transition-colors min-w-[168px] ${
-          open ? 'border-[#555]' : 'border-[#333] hover:border-[#444]'
-        }`}
-      >
-        <span
-          className="material-symbols-outlined flex-shrink-0"
-          style={{ fontSize: '0.9rem', lineHeight: 1, color: selected.length > 0 ? '#f87171' : '#555' }}
+      {compact ? (
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          title="Add blackout date"
+          className={`flex items-center p-1 rounded-md transition-colors ${
+            open ? 'bg-[#2a2a2a] text-[#ccc]' : 'text-[#555] hover:bg-[#222] hover:text-[#999]'
+          }`}
         >
-          event_busy
-        </span>
-        <span className={selected.length > 0 ? 'text-rose-400' : 'text-[#555]'}>
-          {selected.length > 0
-            ? `${selected.length} date${selected.length > 1 ? 's' : ''} blacked out`
-            : 'Pick blackout dates'}
-        </span>
-      </button>
+          <span className="material-symbols-outlined" style={{ fontSize: '0.95rem', lineHeight: 1 }}>
+            event_busy
+          </span>
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          className={`flex items-center gap-2 bg-[#161616] border rounded-lg px-3 py-1.5 text-sm transition-colors min-w-[168px] ${
+            open ? 'border-[#555]' : 'border-[#333] hover:border-[#444]'
+          }`}
+        >
+          <span
+            className="material-symbols-outlined flex-shrink-0"
+            style={{ fontSize: '0.9rem', lineHeight: 1, color: selected.length > 0 ? '#f87171' : '#555' }}
+          >
+            event_busy
+          </span>
+          <span className={selected.length > 0 ? 'text-rose-400' : 'text-[#555]'}>
+            {selected.length > 0
+              ? `${selected.length} date${selected.length > 1 ? 's' : ''} blacked out`
+              : 'Pick blackout dates'}
+          </span>
+        </button>
+      )}
 
       {/* Popover calendar */}
       {open && (
@@ -171,8 +187,8 @@ export default function BlackoutDatePicker({ selected, onChange, minDate }: Prop
         </div>
       )}
 
-      {/* Selected date chips */}
-      {selected.length > 0 && (
+      {/* Selected date chips — hidden in compact mode */}
+      {!compact && selected.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2 max-w-[320px]">
           {selected.map(d => (
             <span key={d}

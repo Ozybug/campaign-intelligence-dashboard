@@ -123,7 +123,7 @@ async function fetchCampaignsByChannel(channel: string): Promise<Campaign[]> {
                             channel:       mapChannel(channel),
                             status:        mapStatus(c.status || 'unknown'),
                             startDate:     c.scheduling_details?.start_time || c.sent_time || c.created_at || new Date().toISOString(),
-                            endDate:       c.scheduling_details?.end_time   || c.sent_time || c.created_at || new Date().toISOString(),
+                            endDate:       c.scheduling_details?.expiry_time || c.scheduling_details?.end_time || c.sent_time || c.created_at || new Date().toISOString(),
                             campaignType:  mapDeliveryType(c.campaign_delivery_type || c.delivery_type || 'ONE_TIME'),
                             targetAudience: isAllUsers ? 'All Users' : 'Segmented',
                             includedFilters,
