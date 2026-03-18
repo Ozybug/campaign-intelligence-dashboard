@@ -16,6 +16,8 @@ interface Props {
   onExtraEventClick?: (schematicId: string) => void;
   /** When true, skips the /api/campaigns fetch — calendar shows only extraEvents */
   blankCalendar?: boolean;
+  /** Dates to highlight as blacked-out on day cells (YYYY-MM-DD array) */
+  blackoutDates?: string[];
 }
 
 // Channels excluded from the filter UI (not relevant for current campaigns)
@@ -36,7 +38,7 @@ const formatDisplayDate = (dateStr: string) => {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-export default function CampaignCalendar({ onSelect, collisions, hideFilters = false, extraEvents = [], onExtraEventClick, blankCalendar = false }: Props) {
+export default function CampaignCalendar({ onSelect, collisions, hideFilters = false, extraEvents = [], onExtraEventClick, blankCalendar = false, blackoutDates = [] }: Props) {
   const [events, setEvents]           = useState<CalendarEvent[]>([]);
   const [loading, setLoading]         = useState(true);
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
@@ -49,6 +51,20 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
     messageTitle: string; subtitle?: string; messageBody?: string;
   } | null>(null);
   const calendarRef = useRef<FullCalendar>(null);
+
+  // ── Hide-campaigns feature ────────────────────────────────────────────────
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => {
+    if (typeof window === 'undefined') return new Set<string>();
+    try {
+      const stored = localStorage.getItem('hiddenCampaignIds');
+      return stored ? new Set<string>(JSON.parse(stored)) : new Set<string>();
+    } catch { return new Set<string>(); }
+  });
+  const [hideOpen,    setHideOpen]    = useState(false);
+  const [hideSearch,  setHideSearch]  = useState('');
+  const [viewTitle,   setViewTitle]   = useState('');
+  const [currentView, setCurrentView] = useState<'dayGridMonth' | 'dayGridWeek'>('dayGridMonth');
+  const hideRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (blankCalendar) { setLoading(false); return; }
@@ -68,6 +84,21 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
       .catch(() => setLoading(false));
   }, [blankCalendar]);
 
+  // Persist hidden campaigns
+  useEffect(() => {
+    localStorage.setItem('hiddenCampaignIds', JSON.stringify([...hiddenIds]));
+  }, [hiddenIds]);
+
+  // Close hide dropdown on outside click
+  useEffect(() => {
+    if (!hideOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (hideRef.current && !hideRef.current.contains(e.target as Node)) setHideOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [hideOpen]);
+
   // -- Filter logic ------------------------------------------------------------
   const filteredEvents = (() => {
     if (activeChannel) {
@@ -83,6 +114,23 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
     }
     return events;
   })();
+
+  const toggleHide = (id: string) => setHiddenIds(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
+  const visibleEvents = filteredEvents.filter(e => !hiddenIds.has((e as any).id ?? ''));
+
+  // -- Hide dropdown item list (computed outside JSX to avoid SWC IIFE issues) --
+  const hideDropdownItems = events
+    .filter(e => !hideSearch || (e.title ?? '').toLowerCase().includes(hideSearch.toLowerCase()))
+    .sort((a, b) => {
+      const aH = hiddenIds.has((a as any).id ?? '');
+      const bH = hiddenIds.has((b as any).id ?? '');
+      if (aH !== bH) return aH ? -1 : 1;
+      return (a.title ?? '').localeCompare(b.title ?? '');
+    });
 
   // -- Interaction handlers ----------------------------------------------------
   const handleGroupClick = (groupId: string) => {
@@ -334,18 +382,147 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
           Loading campaigns...
         </div>
       ) : (
+        <>
+        {/* Custom toolbar — only on main dashboard (hideFilters=false) */}
+        {!hideFilters && (
+          <div className="flex items-center justify-between mb-2 px-0.5">
+            {/* Left: nav + today + hide */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => calendarRef.current?.getApi().prev()}
+                className="flex items-center justify-center w-7 h-7 rounded bg-[#2a2a2a] border border-[#444] text-[#E0E0E0] hover:bg-[#333] hover:border-[#555] transition-colors"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '1rem', lineHeight: 1 }}>chevron_left</span>
+              </button>
+              <button
+                onClick={() => calendarRef.current?.getApi().next()}
+                className="flex items-center justify-center w-7 h-7 rounded bg-[#2a2a2a] border border-[#444] text-[#E0E0E0] hover:bg-[#333] hover:border-[#555] transition-colors"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '1rem', lineHeight: 1 }}>chevron_right</span>
+              </button>
+              <button
+                onClick={() => calendarRef.current?.getApi().today()}
+                className="px-3 h-7 rounded bg-[#2a2a2a] border border-[#444] text-[#E0E0E0] text-xs font-medium hover:bg-[#333] hover:border-[#555] transition-colors"
+              >
+                Today
+              </button>
+
+              {/* Hide campaigns button + dropdown */}
+              <div ref={hideRef} className="relative ml-0.5">
+                <button
+                  onClick={() => setHideOpen(o => !o)}
+                  className={`flex items-center gap-1.5 px-2.5 h-7 rounded border text-xs font-medium transition-colors ${
+                    hiddenIds.size > 0
+                      ? 'bg-[#2a2a2a] border-amber-700 text-amber-400 hover:border-amber-500'
+                      : 'bg-[#2a2a2a] border-[#444] text-[#888] hover:border-[#555] hover:text-[#B0B0B0]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '0.85rem', lineHeight: 1 }}>
+                    {hiddenIds.size > 0 ? 'visibility_off' : 'tune'}
+                  </span>
+                  {hiddenIds.size > 0 ? `${hiddenIds.size} hidden` : 'Hide'}
+                </button>
+
+                {hideOpen && (
+                  <div className="absolute top-full left-0 mt-1.5 z-50 bg-[#1a1a1a] border border-[#3a3a3a] rounded-xl shadow-2xl w-72">
+                    {/* Search */}
+                    <div className="p-2 border-b border-[#2a2a2a]">
+                      <input
+                        type="text"
+                        placeholder="Search campaigns…"
+                        value={hideSearch}
+                        onChange={e => setHideSearch(e.target.value)}
+                        className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-xs text-[#E0E0E0] placeholder-[#555] focus:outline-none focus:border-[#555]"
+                        autoFocus
+                      />
+                    </div>
+                    {/* Campaign list */}
+                    <div className="overflow-y-auto" style={{ maxHeight: 248 }}>
+                      {hideDropdownItems.length === 0 ? (
+                        <p className="text-[#555] text-xs text-center py-6 italic">No campaigns found</p>
+                      ) : hideDropdownItems.map(e => {
+                        const id = (e as any).id ?? '';
+                        const isHidden = hiddenIds.has(id);
+                        const channel = (e as any).extendedProps?.channel || '';
+                        const color = CHANNEL_LEGEND.find(l => l.channel === channel)?.color;
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => toggleHide(id)}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-left text-xs border-b border-[#222] last:border-0 transition-colors ${
+                              isHidden ? 'text-[#666]' : 'text-[#B0B0B0] hover:bg-[#252525] hover:text-[#E0E0E0]'
+                            }`}
+                          >
+                            <span
+                              className="material-symbols-outlined flex-shrink-0"
+                              style={{ fontSize: '0.85rem', lineHeight: 1, color: isHidden ? '#6b4c10' : '#444' }}
+                            >
+                              {isHidden ? 'visibility_off' : 'visibility'}
+                            </span>
+                            <span className="flex-1 truncate">{e.title}</span>
+                            {color && (
+                              <span
+                                className="text-[10px] px-1.5 py-0.5 rounded-full flex-shrink-0 font-medium"
+                                style={{ backgroundColor: color + '22', color }}
+                              >
+                                {channel}
+                              </span>
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {/* Footer: show all */}
+                    {hiddenIds.size > 0 && (
+                      <div className="p-2 border-t border-[#2a2a2a]">
+                        <button
+                          onClick={() => setHiddenIds(new Set())}
+                          className="w-full text-[11px] text-amber-500 hover:text-amber-400 transition-colors py-1"
+                        >
+                          Show all {hiddenIds.size} hidden campaign{hiddenIds.size > 1 ? 's' : ''}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Center: month/year title */}
+            <span className="text-sm font-semibold text-[#E0E0E0]">{viewTitle}</span>
+
+            {/* Right: Month / Week toggle */}
+            <div className="flex items-center rounded overflow-hidden border border-[#444]">
+              <button
+                onClick={() => { calendarRef.current?.getApi().changeView('dayGridMonth'); setCurrentView('dayGridMonth'); }}
+                className={`px-3 h-7 text-xs font-medium transition-colors ${
+                  currentView === 'dayGridMonth' ? 'bg-[#444] text-white' : 'bg-[#2a2a2a] text-[#B0B0B0] hover:bg-[#333]'
+                }`}
+              >Month</button>
+              <button
+                onClick={() => { calendarRef.current?.getApi().changeView('dayGridWeek'); setCurrentView('dayGridWeek'); }}
+                className={`px-3 h-7 text-xs font-medium transition-colors border-l border-[#444] ${
+                  currentView === 'dayGridWeek' ? 'bg-[#444] text-white' : 'bg-[#2a2a2a] text-[#B0B0B0] hover:bg-[#333]'
+                }`}
+              >Week</button>
+            </div>
+          </div>
+        )}
+
         <div className={`calendar-container${dateRange.start && !dateRange.end ? ' selecting-end' : ''}${hideFilters ? ' events-dim' : ''}`}>
           <FullCalendar
             ref={calendarRef}
             plugins={[dayGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
-            headerToolbar={{
+            headerToolbar={hideFilters ? {
               left:   'prev,next today',
               center: 'title',
               right:  'dayGridMonth,dayGridWeek',
-            }}
+            } : false}
             buttonText={{ today: 'Today', month: 'Month', week: 'Week' }}
-            events={[...filteredEvents, ...extraEvents] as any}
+            datesSet={() => setViewTitle(calendarRef.current?.getApi().view.title ?? '')}
+            events={[...visibleEvents, ...extraEvents] as any}
             dateClick={handleDateClick}
             dayCellClassNames={(arg) => {
               const dateStr = toLocalDateStr(arg.date);
@@ -358,20 +535,36 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
                 else if (dateStr === end)                  classes.push('date-range-end');
                 else if (dateStr > start && dateStr < end) classes.push('date-range-in');
               }
+              if (blackoutDates.includes(dateStr)) classes.push('blackout-date');
               return classes;
             }}
             eventClassNames={(arg) => {
               const classes = ['cursor-pointer', 'transition-opacity'];
-              if (arg.event.extendedProps?.isSchematic) classes.push('schematic-event');
+              if (arg.event.extendedProps?.isSchematic) {
+                const osmStatus = arg.event.extendedProps?.osmStatus;
+                if (osmStatus === 'Live') {
+                  classes.push('live-event');       // pill, solid, full opacity
+                } else if (osmStatus === 'Scheduled') {
+                  classes.push('scheduled-event');  // pill, solid, low fill opacity
+                } else {
+                  classes.push('schematic-event');  // rectangular, dashed (Ideation)
+                }
+              }
               return classes;
             }}
             eventContent={(arg) => {
               // ── Schematic planned event ──
               if (arg.event.extendedProps?.isSchematic) {
-                const { icon, indefinite, format } = arg.event.extendedProps;
+                const { icon, indefinite, format, mode } = arg.event.extendedProps;
+                // mode icon: Shell = draft (slate), Curated = task_alt (emerald)
+                const modeIcon  = mode === 'Shell' ? 'draft' : mode === 'Curated' ? 'task_alt' : null;
+                const modeColor = mode === 'Shell' ? '#94A3B8' : '#34D399';
                 return (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '3px', width: '100%', padding: '0 3px', overflow: 'hidden' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '0.7rem', lineHeight: 1, flexShrink: 0 }}>{icon}</span>
+                    {modeIcon && (
+                      <span className="material-symbols-outlined" style={{ fontSize: '0.6rem', lineHeight: 1, flexShrink: 0, color: modeColor }}>{modeIcon}</span>
+                    )}
                     <span style={{ fontSize: '0.65rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                       {arg.event.title}
                     </span>
@@ -422,6 +615,7 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
             {...schematicStackingProps}
           />
         </div>
+        </>
       )}
 
       {/* -- Schematic event tooltip (fixed-position to escape FC overflow:hidden) -- */}
