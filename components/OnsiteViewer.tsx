@@ -239,6 +239,17 @@ export default function OnsiteViewer() {
   };
 
   // ── Derived UI values ─────────────────────────────────────────────────────
+
+  // Flow steps use explicit boolean flags — NOT phaseOrder — so that jumping to
+  // 'error' from any early phase does not incorrectly mark later steps as done.
+  const flowSteps: [Phase, string, boolean][] = [
+    ['loading',    'Stub + script inject', sdkExists],
+    ['polling',    'Poll for real SDK',    sdkIsReal],
+    ['ready',      'SDK ready',            userIdentified],
+    ['identified', 'User identified',      eventsFired.length > 0],
+    ['done',       'Events fired',         phase === 'done'],
+  ];
+
   const phaseBadge: Record<Phase, string> = {
     idle:       'bg-[#2a2a2a]  text-[#888888]  border-[#444444]',
     loading:    'bg-amber-950  text-amber-400  border-amber-800',
@@ -314,22 +325,15 @@ export default function OnsiteViewer() {
             Initialisation flow
           </h2>
           <div className="flex items-center gap-2 flex-wrap text-xs">
-            {(
-              [
-                ['loading',    'Stub + script inject'],
-                ['polling',    'Poll for real SDK'],
-                ['ready',      'SDK ready'],
-                ['identified', 'User identified'],
-                ['done',       'Events fired'],
-              ] as [Phase, string][]
-            ).map(([p, label], i, arr) => {
-              const isDone    = phaseOrder(phase) > phaseOrder(p);
+            {flowSteps.map(([p, label, isDone], i, arr) => {
               const isCurrent = phase === p;
               return (
                 <span key={p} className="flex items-center gap-1.5">
                   <span className={`px-2 py-0.5 rounded-full border font-medium ${
                     isDone    ? 'bg-emerald-950 text-emerald-400 border-emerald-800' :
                     isCurrent ? 'bg-sky-950 text-sky-400 border-sky-800' :
+                    phase === 'error' && p === 'loading' && !sdkExists
+                              ? 'bg-rose-950 text-rose-400 border-rose-800' :
                                 'bg-[#2a2a2a] text-[#555555] border-[#333333]'
                   }`}>
                     {isDone ? '✓ ' : ''}{label}
@@ -432,7 +436,9 @@ export default function OnsiteViewer() {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function phaseOrder(p: Phase): number {
-  return { idle: 0, loading: 1, polling: 2, ready: 3, identified: 4, done: 5, error: 99 }[p] ?? 0;
+  // 'error' is -1 so it never marks any flow step as "done" via ordering.
+  // Flow completion is driven by boolean state flags (flowSteps), not this fn.
+  return { idle: 0, loading: 1, polling: 2, ready: 3, identified: 4, done: 5, error: -1 }[p] ?? 0;
 }
 
 function StatusCard({ label, value, ok }: { label: string; value: string; ok: boolean }) {
