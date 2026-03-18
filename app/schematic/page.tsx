@@ -228,31 +228,45 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         )}
       </div>
 
-      {/* Row 4: Message content — Push only */}
-      {f.channel === 'Push' && <div className="border-t border-[#2a2a2a] pt-3 space-y-2">
+      {/* Row 4: Message content — Push: Title + Subtitle + Body | Email: Subject + Agenda */}
+      <div className="border-t border-[#2a2a2a] pt-3 space-y-2">
+        {/* First-line field: Push = Message Title, Email = Subject Line */}
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
-            Message Title <span className="text-rose-400">*</span>
+            {f.channel === 'Push' ? 'Message Title' : 'Email Subject Line'} <span className="text-rose-400">*</span>
           </p>
-          <input type="text" placeholder='e.g. Work in NCR ❌ Workation in NCR ✅' value={f.messageTitle}
-            onChange={e => set('messageTitle', e.target.value)} required
+          <input type="text"
+            placeholder={f.channel === 'Push' ? 'e.g. Work in NCR ❌ Workation in NCR ✅' : 'e.g. Your Zostel booking is confirmed 🎉'}
+            value={f.messageTitle} onChange={e => set('messageTitle', e.target.value)} required
             className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors" />
         </div>
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Subtitle</p>
-            <input type="text" placeholder="Optional subtitle" value={f.subtitle}
-              onChange={e => set('subtitle', e.target.value)}
-              className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors" />
+        {/* Push: Subtitle + Body side-by-side */}
+        {f.channel === 'Push' && (
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Subtitle</p>
+              <input type="text" placeholder="Optional subtitle" value={f.subtitle}
+                onChange={e => set('subtitle', e.target.value)}
+                className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors" />
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Message Body</p>
+              <textarea placeholder="e.g. Upgrade your work trips with our all-new Zostel Noida!" value={f.messageBody}
+                onChange={e => set('messageBody', e.target.value)} rows={2}
+                className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors resize-none" />
+            </div>
           </div>
-          <div className="flex-1">
-            <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Message Body</p>
-            <textarea placeholder="e.g. Upgrade your work trips with our all-new Zostel Noida!" value={f.messageBody}
+        )}
+        {/* Email: Agenda full-width */}
+        {f.channel === 'Email' && (
+          <div>
+            <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Email Agenda</p>
+            <textarea placeholder="e.g. Announce new property launch, highlight weekend offer, CTA to book" value={f.messageBody}
               onChange={e => set('messageBody', e.target.value)} rows={2}
               className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors resize-none" />
           </div>
-        </div>
-      </div>}
+        )}
+      </div>
 
       {/* Row 5: Actions */}
       <div className="flex flex-wrap gap-2 pt-1 border-t border-[#2a2a2a]">
@@ -278,7 +292,7 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
             Delete
           </button>
         )}
-        <button type="submit" disabled={!f.title.trim() || !f.startDate || (f.channel === 'Push' && !f.messageTitle.trim())}
+        <button type="submit" disabled={!f.title.trim() || !f.startDate || !f.messageTitle.trim()}
           className="ml-auto flex items-center gap-1.5 px-4 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors">
           <span className="material-symbols-outlined" style={{ fontSize: '0.9rem', lineHeight: 1 }}>
             {isEdit ? 'save' : 'add'}
@@ -342,7 +356,7 @@ export default function SchematicPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.startDate || (form.channel === 'Push' && !form.messageTitle.trim())) return;
+    if (!form.title.trim() || !form.startDate || !form.messageTitle.trim()) return;
 
     const existing = campaigns.find(c => c.id === editId);
     const campaign: SchematicCampaign = {

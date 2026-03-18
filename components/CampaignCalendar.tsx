@@ -43,7 +43,7 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
   const [allCampaigns, setAllCampaigns] = useState<any[]>([]);
   const [dateRange, setDateRange]     = useState<{ start: string | null; end: string | null }>({ start: null, end: null });
   const [schTooltip, setSchTooltip]   = useState<{
-    x: number; y: number;
+    x: number; y: number; channel: string;
     messageTitle: string; subtitle?: string; messageBody?: string;
   } | null>(null);
   const calendarRef = useRef<FullCalendar>(null);
@@ -397,6 +397,7 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
                 setSchTooltip({
                   x: rect.left,
                   y: rect.top,
+                  channel:      ep.channel || '',
                   messageTitle: ep.messageTitle,
                   subtitle:     ep.subtitle,
                   messageBody:  ep.messageBody,
@@ -433,12 +434,23 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
           }}
           className="bg-[#1a1a2e] border border-[#3d2d6e] rounded-lg px-3 py-2 text-xs max-w-[260px] shadow-2xl"
         >
-          <p className="font-semibold text-indigo-200 leading-snug mb-0.5">{schTooltip.messageTitle}</p>
-          {schTooltip.subtitle && (
+          {/* Label row */}
+          <p className="text-[9px] font-semibold text-[#555] tracking-wider uppercase mb-0.5">
+            {schTooltip.channel === 'Email' ? 'Subject Line' : 'Message Title'}
+          </p>
+          <p className="font-semibold text-indigo-200 leading-snug mb-1">{schTooltip.messageTitle}</p>
+          {/* Push: subtitle */}
+          {schTooltip.channel !== 'Email' && schTooltip.subtitle && (
             <p className="text-[#888] leading-snug mb-0.5">{schTooltip.subtitle}</p>
           )}
+          {/* Push: body | Email: agenda */}
           {schTooltip.messageBody && (
-            <p className="text-[#B0B0B0] leading-relaxed">{schTooltip.messageBody}</p>
+            <>
+              <p className="text-[9px] font-semibold text-[#555] tracking-wider uppercase mb-0.5 mt-1">
+                {schTooltip.channel === 'Email' ? 'Agenda' : 'Body'}
+              </p>
+              <p className="text-[#B0B0B0] leading-relaxed">{schTooltip.messageBody}</p>
+            </>
           )}
         </div>
       )}
