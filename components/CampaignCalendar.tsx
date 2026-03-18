@@ -156,6 +156,13 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
         .filter(l => !EXCLUDED_CHANNELS.has(l.channel))
         .map(l => ({ id: l.channel, color: l.color, icon: l.icon }));
 
+  // -- Schematic stacking props (defined outside JSX to avoid SWC parser issues) --
+  const schematicStackingProps = hideFilters ? {
+    eventOrder: (a: any, b: any) =>
+      (a.extendedProps?.isSchematic ? 0 : 1) - (b.extendedProps?.isSchematic ? 0 : 1),
+    dayMaxEvents: 5,
+  } : {};
+
   return (
     <div className="bg-[#1e1e1e] rounded-xl p-4 shadow-sm border border-[#444444]">
 
@@ -389,6 +396,7 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
             }}
             eventDisplay="block"
             height="auto"
+            {...schematicStackingProps}
           />
         </div>
       )}
