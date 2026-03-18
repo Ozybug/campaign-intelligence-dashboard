@@ -80,12 +80,12 @@ export default function DashboardStats() {
             {items.map((item) => (
                     <div key={item.label} className={`${item.cardClass} rounded-xl p-4 shadow-sm`}>
                               <div className="flex items-center justify-between mb-2">
-                                          <span className={`${item.labelClass} text-xs font-semibold tracking-wider`}>{item.label}</span>span>
+                                          <span className={`${item.labelClass} text-xs font-semibold tracking-wider`}>{item.label}</span>
                                           <MatIcon name={item.icon} className={item.iconClass} />
-                              </div>div>
-                              <div className={`text-3xl font-bold ${item.valueClass}`}>{item.value}</div>div>
-                    </div>div>
+                              </div>
+                              <div className={`text-3xl font-bold ${item.valueClass}`}>{item.value}</div>
+                    </div>
                   ))}
-          </div>div>
+          </div>
         );
-}</span>
+}
