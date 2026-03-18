@@ -16,6 +16,8 @@ interface Props {
   onExtraEventClick?: (schematicId: string) => void;
   /** When true, skips the /api/campaigns fetch — calendar shows only extraEvents */
   blankCalendar?: boolean;
+  /** Dates to highlight as blacked-out on day cells (YYYY-MM-DD array) */
+  blackoutDates?: string[];
 }
 
 // Channels excluded from the filter UI (not relevant for current campaigns)
@@ -36,7 +38,7 @@ const formatDisplayDate = (dateStr: string) => {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-export default function CampaignCalendar({ onSelect, collisions, hideFilters = false, extraEvents = [], onExtraEventClick, blankCalendar = false }: Props) {
+export default function CampaignCalendar({ onSelect, collisions, hideFilters = false, extraEvents = [], onExtraEventClick, blankCalendar = false, blackoutDates = [] }: Props) {
   const [events, setEvents]           = useState<CalendarEvent[]>([]);
   const [loading, setLoading]         = useState(true);
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
@@ -358,6 +360,7 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
                 else if (dateStr === end)                  classes.push('date-range-end');
                 else if (dateStr > start && dateStr < end) classes.push('date-range-in');
               }
+              if (blackoutDates.includes(dateStr)) classes.push('blackout-date');
               return classes;
             }}
             eventClassNames={(arg) => {

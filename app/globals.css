@@ -232,6 +232,25 @@ html, body {
   opacity: 1 !important;
 }
 
+/* Blackout dates — diagonal-stripe silhouette on day cells */
+.calendar-container .fc-daygrid-day.blackout-date .fc-daygrid-day-frame {
+  background-color: transparent !important;
+}
+.calendar-container .fc-daygrid-day.blackout-date {
+  background-color: rgba(239, 68, 68, 0.05) !important;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(239, 68, 68, 0.09),
+    rgba(239, 68, 68, 0.09) 1.5px,
+    transparent 1.5px,
+    transparent 7px
+  ) !important;
+}
+.calendar-container .fc-daygrid-day.blackout-date .fc-daygrid-day-number {
+  color: #f87171 !important;
+  opacity: 0.55 !important;
+}
+
 /* Crosshair cursor while selecting end date */
 .calendar-container.selecting-end .fc-daygrid-day {
   cursor: crosshair !important;

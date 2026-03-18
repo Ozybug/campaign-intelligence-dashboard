@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { CollisionWarning } from '@/types/campaign';
 import MiniCalendar from '@/components/MiniCalendar';
+import BlackoutDatePicker from '@/components/BlackoutDatePicker';
 
 const CampaignCalendar = dynamic(() => import('@/components/CampaignCalendar'), { ssr: false });
 
@@ -22,12 +23,13 @@ interface SchematicCampaign {
   title: string;
   channel: SchChannel;
   format: SchFormat;
-  startDate: string;      // YYYY-MM-DD
-  endDate: string | null; // null = indefinite
+  startDate: string;       // YYYY-MM-DD
+  endDate: string | null;  // null = indefinite
   stage: Stage;
-  messageTitle?: string;  // push/email notification title
-  subtitle?: string;      // optional subtitle
-  messageBody?: string;   // message body / copy
+  blackoutDates?: string[]; // YYYY-MM-DD array — days campaign is paused
+  messageTitle?: string;
+  subtitle?: string;
+  messageBody?: string;
   recurring?: {
     interval: RecInterval;
     customValue?: number;
@@ -61,14 +63,74 @@ const formatDate = (str: string) => {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-// Only schematic-stage campaigns appear on the calendar
+// ── Compute recurring occurrences (used in form preview list) ─────────────────
+function computeOccurrences(f: {
+  startDate: string; endDate: string;
+  interval: RecInterval; customValue: number; customUnit: CustomUnit;
+}): string[] {
+  if (!f.startDate) return [];
+  // If no end date, cap at 3 months from start
+  const horizon      = toDateStr(addMonths(new Date(f.startDate + 'T00:00:00'), 3));
+  const effectiveEnd = f.endDate || horizon;
+  const results: string[] = [];
+  let cur = new Date(f.startDate + 'T00:00:00');
+  const end = new Date(effectiveEnd + 'T00:00:00');
+  let n = 0;
+  while (cur <= end && n < 365) {
+    results.push(toDateStr(cur));
+    if      (f.interval === 'daily')   cur = addDays(cur, 1);
+    else if (f.interval === 'weekly')  cur = addDays(cur, 7);
+    else if (f.interval === 'monthly') cur = addMonths(cur, 1);
+    else if (f.customUnit === 'day')   cur = addDays(cur, f.customValue);
+    else if (f.customUnit === 'week')  cur = addDays(cur, f.customValue * 7);
+    else if (f.customUnit === 'month') cur = addMonths(cur, f.customValue);
+    else                               cur = addYears(cur, f.customValue);
+    n++;
+  }
+  return results;
+}
+
+// ── Split a date range into segments, skipping blackout dates ─────────────────
+function splitRangeAroundBlackouts(
+  baseId: string, title: string,
+  startDate: string, endDate: string,
+  blackoutSet: Set<string>, base: any,
+): any[] {
+  const events: any[] = [];
+  let segStart: string | null = null;
+  let segIdx = 0;
+  let cur = new Date(startDate + 'T00:00:00');
+  const end = new Date(endDate + 'T00:00:00');
+  while (cur <= end) {
+    const dateStr = toDateStr(cur);
+    if (!blackoutSet.has(dateStr)) {
+      if (!segStart) segStart = dateStr;
+    } else {
+      if (segStart) {
+        // end is exclusive — use the blackout date itself as the end
+        events.push({ ...base, id: `${baseId}_seg_${segIdx++}`, title, start: segStart, end: dateStr });
+        segStart = null;
+      }
+    }
+    cur = addDays(cur, 1);
+  }
+  // Close the final segment
+  if (segStart) {
+    const excEnd = toDateStr(addDays(new Date(endDate + 'T00:00:00'), 1));
+    events.push({ ...base, id: `${baseId}_seg_${segIdx}`, title, start: segStart, end: excEnd });
+  }
+  return events;
+}
+
+// ── Expand a campaign to FullCalendar events (skips blackout dates) ────────────
 function expandToEvents(c: SchematicCampaign): any[] {
   if (c.stage === 'live') return [];
 
-  const color      = CHANNEL_COLORS[c.channel];
-  const bgOpacity  = c.mode === 'Shell' ? 0.10 : 0.18; // Shell chips appear dimmer
+  const blackoutSet  = new Set(c.blackoutDates ?? []);
+  const color        = CHANNEL_COLORS[c.channel];
+  const bgOpacity    = c.mode === 'Shell' ? 0.10 : 0.18;
   const isIndefinite = c.endDate === null;
-  const horizon = toDateStr(addYears(new Date(), 1));
+  const horizon      = toDateStr(addYears(new Date(), 1));
   const effectiveEnd = isIndefinite ? horizon : c.endDate!;
 
   const base = {
@@ -92,17 +154,24 @@ function expandToEvents(c: SchematicCampaign): any[] {
   };
 
   if (c.format !== 'Recurring') {
-    return [{ ...base, id: c.id, title: c.title, start: c.startDate, end: effectiveEnd >= c.startDate ? effectiveEnd : c.startDate }];
+    const eff = effectiveEnd >= c.startDate ? effectiveEnd : c.startDate;
+    if (blackoutSet.size === 0) {
+      return [{ ...base, id: c.id, title: c.title, start: c.startDate, end: eff }];
+    }
+    return splitRangeAroundBlackouts(c.id, c.title, c.startDate, eff, blackoutSet, base);
   }
 
+  // Recurring — generate individual occurrences, skipping blacked-out dates
   const { interval = 'weekly', customValue = 1, customUnit = 'week' } = c.recurring ?? {};
   const events: any[] = [];
   let cur = new Date(c.startDate + 'T00:00:00');
   const endBound = new Date(effectiveEnd + 'T00:00:00');
   let n = 0;
-
   while (cur <= endBound && n < 365) {
-    events.push({ ...base, id: `${c.id}_occ_${n}`, title: c.title, start: toDateStr(cur), end: toDateStr(addDays(cur, 1)) });
+    const dateStr = toDateStr(cur);
+    if (!blackoutSet.has(dateStr)) {
+      events.push({ ...base, id: `${c.id}_occ_${n}`, title: c.title, start: dateStr, end: toDateStr(addDays(cur, 1)) });
+    }
     if      (interval === 'daily')   cur = addDays(cur, 1);
     else if (interval === 'weekly')  cur = addDays(cur, 7);
     else if (interval === 'monthly') cur = addMonths(cur, 1);
@@ -122,6 +191,7 @@ interface FormState {
   title: string; channel: SchChannel; format: SchFormat;
   startDate: string; endDate: string;
   interval: RecInterval; customValue: number; customUnit: CustomUnit;
+  blackoutDates: string[];
   messageTitle: string; subtitle: string; messageBody: string;
 }
 const EMPTY: FormState = {
@@ -129,10 +199,11 @@ const EMPTY: FormState = {
   title: '', channel: 'Email', format: 'One Time',
   startDate: '', endDate: '',
   interval: 'weekly', customValue: 1, customUnit: 'week',
+  blackoutDates: [],
   messageTitle: '', subtitle: '', messageBody: '',
 };
 
-// ── Form body (shared between add card and edit modal) ─────────────────────────
+// ── Form body ──────────────────────────────────────────────────────────────────
 function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, currentStage, isEdit }: {
   f: FormState;
   set: (k: keyof FormState, v: any) => void;
@@ -143,11 +214,23 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
   currentStage?: Stage;
   isEdit: boolean;
 }) {
+  // Computed occurrences for the Recurring occurrence list
+  const occurrences = f.format === 'Recurring' && f.startDate
+    ? computeOccurrences({ startDate: f.startDate, endDate: f.endDate, interval: f.interval, customValue: f.customValue, customUnit: f.customUnit })
+    : null; // null = "not yet computable"
+
+  const toggleBlackout = (date: string) => {
+    const next = f.blackoutDates.includes(date)
+      ? f.blackoutDates.filter(d => d !== date)
+      : [...f.blackoutDates, date].sort();
+    set('blackoutDates', next);
+  };
+
   return (
     <form onSubmit={onSubmit} className="space-y-3">
+
       {/* Row 1: Brand · Channel · Title · Format */}
       <div className="flex flex-wrap gap-3 items-end">
-        {/* Brand */}
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
             Brand <span className="text-rose-400">*</span>
@@ -165,7 +248,6 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
           </div>
         </div>
 
-        {/* Channel */}
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Channel</p>
           <div className="flex gap-1">
@@ -174,8 +256,7 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
                 className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
                 style={f.channel === ch
                   ? { backgroundColor: hexToRgba(CHANNEL_COLORS[ch], 0.22), borderColor: CHANNEL_COLORS[ch], color: CHANNEL_COLORS[ch] }
-                  : { backgroundColor: '#161616', borderColor: '#333', color: '#888' }}
-              >
+                  : { backgroundColor: '#161616', borderColor: '#333', color: '#888' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: '0.8rem', lineHeight: 1 }}>{CHANNEL_ICONS[ch]}</span>
                 {ch}
               </button>
@@ -187,7 +268,8 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
             Campaign Title <span className="text-rose-400">*</span>
           </p>
-          <input type="text" placeholder="e.g. Summer Sale Blast" value={f.title} onChange={e => set('title', e.target.value)} required
+          <input type="text" placeholder="e.g. Summer Sale Blast" value={f.title}
+            onChange={e => set('title', e.target.value)} required
             className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors" />
         </div>
 
@@ -237,7 +319,7 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         </div>
       )}
 
-      {/* Row 3: Dates · Mode (right of end date) */}
+      {/* Row 3: Dates · Mode */}
       <div className="flex flex-wrap gap-3 items-end">
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
@@ -261,7 +343,7 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
           </div>
         )}
 
-        {/* Mode toggle — blank space on the right of end date */}
+        {/* Mode toggle — blank space on the right */}
         <div className="ml-auto">
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
             Mode <span className="text-rose-400">*</span>
@@ -286,9 +368,71 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         </div>
       </div>
 
-      {/* Row 4: Message content — Push: Title + Subtitle + Body | Email: Subject + Agenda */}
+      {/* Row 3.5: Blackout Dates */}
+      <div className="border-t border-[#2a2a2a] pt-3">
+        <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-2">
+          Blackout Dates
+          <span className="ml-1.5 text-[#555] font-normal normal-case tracking-normal">— campaign paused on these days</span>
+        </p>
+        <div className="flex flex-wrap gap-6 items-start">
+
+          {/* Multi-date picker */}
+          <BlackoutDatePicker
+            selected={f.blackoutDates}
+            onChange={dates => set('blackoutDates', dates)}
+            minDate={f.startDate || undefined}
+          />
+
+          {/* Recurring occurrence list */}
+          {f.format === 'Recurring' && (
+            <div className="flex-1 min-w-[200px] max-w-[280px]">
+              <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
+                Scheduled Occurrences
+                <span className="ml-1 text-[#555] font-normal normal-case tracking-normal">— click to blackout</span>
+              </p>
+              {!f.startDate ? (
+                <p className="text-[11px] text-[#555] italic py-2 px-1">
+                  Select start date and repeats first
+                </p>
+              ) : (
+                <div
+                  className="overflow-y-auto border border-[#333] rounded-lg bg-[#161616]"
+                  style={{ height: '160px' }} // fixed height — 5 rows × 32px
+                >
+                  {occurrences && occurrences.length > 0 ? occurrences.map(date => {
+                    const isBlacked = f.blackoutDates.includes(date);
+                    return (
+                      <button
+                        key={date}
+                        type="button"
+                        onClick={() => toggleBlackout(date)}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-left text-xs border-b border-[#222] last:border-0 transition-colors ${
+                          isBlacked
+                            ? 'bg-rose-950/40 text-rose-400'
+                            : 'text-[#B0B0B0] hover:bg-[#252525] hover:text-[#E0E0E0]'
+                        }`}
+                      >
+                        <span>{formatDate(date)}</span>
+                        {isBlacked && (
+                          <span className="material-symbols-outlined text-rose-500" style={{ fontSize: '0.75rem', lineHeight: 1 }}>event_busy</span>
+                        )}
+                      </button>
+                    );
+                  }) : (
+                    <p className="text-[#555] text-xs text-center py-6 italic">No occurrences in range</p>
+                  )}
+                </div>
+              )}
+              {f.endDate === '' && f.startDate && (
+                <p className="text-[9px] text-[#555] mt-1">Showing next 3 months — set end date to see more</p>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Row 4: Message content */}
       <div className="border-t border-[#2a2a2a] pt-3 space-y-2">
-        {/* First-line field: Push = Message Title, Email = Subject Line */}
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
             {f.channel === 'Push' ? 'Message Title' : 'Email Subject Line'}
@@ -301,7 +445,6 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
             required={f.mode === 'Curated'}
             className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors" />
         </div>
-        {/* Push: Subtitle + Body side-by-side */}
         {f.channel === 'Push' && (
           <div className="flex gap-2">
             <div className="flex-1">
@@ -318,7 +461,6 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
             </div>
           </div>
         )}
-        {/* Email: Agenda full-width */}
         {f.channel === 'Email' && (
           <div>
             <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Email Agenda</p>
@@ -331,7 +473,6 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
 
       {/* Row 5: Actions */}
       <div className="flex flex-wrap gap-2 pt-1 border-t border-[#2a2a2a]">
-        {/* Stage toggle — edit modal only */}
         {isEdit && currentStage === 'schematic' && onMarkLive && (
           <button type="button" onClick={onMarkLive}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-800 rounded-lg text-xs font-medium transition-colors">
@@ -383,11 +524,11 @@ export default function SchematicPage() {
       const raw = localStorage.getItem(LS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as any[];
-        // Migrate: ensure every campaign has stage, brand, and mode fields
         setCampaigns(parsed.map(c => ({
-          stage: 'schematic' as Stage,
-          brand: 'Zostel'   as Brand,   // default for pre-brand campaigns
-          mode:  'Curated'  as SchMode, // default for pre-mode campaigns (had msg title required)
+          stage:         'schematic' as Stage,
+          brand:         'Zostel'    as Brand,
+          mode:          'Curated'   as SchMode,
+          blackoutDates: [] as string[],
           ...c,
         })));
       }
@@ -404,26 +545,27 @@ export default function SchematicPage() {
   };
 
   const set = (k: keyof FormState, v: any) => setForm(prev => ({ ...prev, [k]: v }));
-  const resetForm = () => { setForm({ ...EMPTY }); setEditId(null); };
+  const resetForm  = () => { setForm({ ...EMPTY }); setEditId(null); };
   const closeModal = () => { setModalOpen(false); resetForm(); };
 
   const openEdit = (id: string) => {
     const c = campaigns.find(x => x.id === id);
     if (!c) return;
     setForm({
-      brand:        c.brand ?? 'Zostel',
-      mode:         c.mode  ?? 'Curated',
-      title:        c.title,
-      channel:      c.channel,
-      format:       c.format,
-      startDate:    c.startDate,
-      endDate:      c.endDate ?? '',
-      interval:     c.recurring?.interval    ?? 'weekly',
-      customValue:  c.recurring?.customValue ?? 1,
-      customUnit:   c.recurring?.customUnit  ?? 'week',
-      messageTitle: c.messageTitle ?? '',
-      subtitle:     c.subtitle     ?? '',
-      messageBody:  c.messageBody  ?? '',
+      brand:         c.brand ?? 'Zostel',
+      mode:          c.mode  ?? 'Curated',
+      title:         c.title,
+      channel:       c.channel,
+      format:        c.format,
+      startDate:     c.startDate,
+      endDate:       c.endDate ?? '',
+      interval:      c.recurring?.interval    ?? 'weekly',
+      customValue:   c.recurring?.customValue ?? 1,
+      customUnit:    c.recurring?.customUnit  ?? 'week',
+      blackoutDates: c.blackoutDates ?? [],
+      messageTitle:  c.messageTitle ?? '',
+      subtitle:      c.subtitle     ?? '',
+      messageBody:   c.messageBody  ?? '',
     });
     setEditId(c.id);
     setModalOpen(true);
@@ -436,18 +578,19 @@ export default function SchematicPage() {
 
     const existing = campaigns.find(c => c.id === editId);
     const campaign: SchematicCampaign = {
-      id:           editId ?? genId(),
-      brand:        form.brand as Brand,
-      mode:         form.mode  as SchMode,
-      title:        form.title.trim(),
-      channel:      form.channel,
-      format:       form.format,
-      startDate:    form.startDate,
-      endDate:      form.endDate || null,
-      stage:        existing?.stage ?? 'schematic',
-      messageTitle: form.messageTitle.trim() || undefined,
-      subtitle:     form.subtitle.trim()     || undefined,
-      messageBody:  form.messageBody.trim()  || undefined,
+      id:            editId ?? genId(),
+      brand:         form.brand as Brand,
+      mode:          form.mode  as SchMode,
+      title:         form.title.trim(),
+      channel:       form.channel,
+      format:        form.format,
+      startDate:     form.startDate,
+      endDate:       form.endDate || null,
+      stage:         existing?.stage ?? 'schematic',
+      blackoutDates: form.blackoutDates.length > 0 ? form.blackoutDates : undefined,
+      messageTitle:  form.messageTitle.trim() || undefined,
+      subtitle:      form.subtitle.trim()     || undefined,
+      messageBody:   form.messageBody.trim()  || undefined,
       ...(form.format === 'Recurring' && {
         recurring: {
           interval: form.interval,
@@ -484,11 +627,16 @@ export default function SchematicPage() {
 
   const extraEvents = campaigns.flatMap(expandToEvents);
 
+  // Combine all saved blackout dates + current form's blackout dates for calendar day-cell highlighting
+  const allBlackoutDates = Array.from(new Set([
+    ...campaigns.flatMap(c => c.blackoutDates ?? []),
+    ...form.blackoutDates,
+  ]));
+
   const schematicCount = campaigns.filter(c => c.stage === 'schematic').length;
   const liveCount      = campaigns.filter(c => c.stage === 'live').length;
   const editCampaign   = campaigns.find(c => c.id === editId);
 
-  // Feed sorted: schematic first (by startDate), then live (by startDate)
   const feedCampaigns = [...campaigns].sort((a, b) => {
     if (a.stage !== b.stage) return a.stage === 'schematic' ? -1 : 1;
     return a.startDate.localeCompare(b.startDate);
@@ -533,13 +681,14 @@ export default function SchematicPage() {
           <FormBody f={form} set={set} onSubmit={handleSubmit} isEdit={false} />
         </div>
 
-        {/* Calendar */}
+        {/* Calendar — receives all blackout dates for day-cell highlighting */}
         <CampaignCalendar
           onSelect={() => {}}
           collisions={collisions}
           hideFilters
           extraEvents={extraEvents}
           onExtraEventClick={openEdit}
+          blackoutDates={allBlackoutDates}
         />
 
         {/* Campaign feed */}
@@ -548,28 +697,22 @@ export default function SchematicPage() {
             <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-3">Campaign Feed</p>
             <div className="space-y-0.5">
               {feedCampaigns.map(c => {
-                const color    = CHANNEL_COLORS[c.channel];
-                const icon     = CHANNEL_ICONS[c.channel];
-                const bColor   = BRAND_COLORS[c.brand] ?? '#818CF8';
-                const mColor   = MODE_COLORS[c.mode]   ?? '#94A3B8';
-                const mIcon    = MODE_ICONS[c.mode]    ?? 'draft';
-                const isLive   = c.stage === 'live';
+                const color  = CHANNEL_COLORS[c.channel];
+                const icon   = CHANNEL_ICONS[c.channel];
+                const bColor = BRAND_COLORS[c.brand] ?? '#818CF8';
+                const mColor = MODE_COLORS[c.mode]   ?? '#94A3B8';
+                const mIcon  = MODE_ICONS[c.mode]    ?? 'draft';
+                const isLive = c.stage === 'live';
                 return (
-                  <button
-                    key={c.id}
-                    onClick={() => openEdit(c.id)}
-                    className="w-full flex items-center gap-3 py-2.5 px-2 text-left hover:bg-[#252525] transition-colors rounded-lg"
-                  >
-                    {/* Channel bar */}
+                  <button key={c.id} onClick={() => openEdit(c.id)}
+                    className="w-full flex items-center gap-3 py-2.5 px-2 text-left hover:bg-[#252525] transition-colors rounded-lg">
                     <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: color, opacity: isLive ? 0.5 : 1 }} />
-                    {/* Icon */}
-                    <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '0.95rem', lineHeight: 1, color, opacity: isLive ? 0.5 : 1 }}>
+                    <span className="material-symbols-outlined flex-shrink-0"
+                      style={{ fontSize: '0.95rem', lineHeight: 1, color, opacity: isLive ? 0.5 : 1 }}>
                       {icon}
                     </span>
-                    {/* Title + meta */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
-                        {/* Brand badge */}
                         <span className="px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase border flex-shrink-0"
                           style={{
                             backgroundColor: hexToRgba(bColor, 0.1),
@@ -581,14 +724,15 @@ export default function SchematicPage() {
                         <p className={`text-sm font-medium truncate ${isLive ? 'text-[#888]' : 'text-[#E0E0E0]'}`}>{c.title}</p>
                       </div>
                       <p className="text-[11px] text-[#555]">
-                        {c.channel}
-                        {' · '}
+                        {c.channel}{' · '}
                         {c.format === 'Recurring' && `${c.recurring?.interval ?? 'recurring'} · `}
                         {formatDate(c.startDate)}
                         {c.endDate ? ` → ${formatDate(c.endDate)}` : ' → ∞'}
+                        {c.blackoutDates && c.blackoutDates.length > 0 && (
+                          <span className="ml-1.5 text-rose-600">· {c.blackoutDates.length} blackout{c.blackoutDates.length > 1 ? 's' : ''}</span>
+                        )}
                       </p>
                     </div>
-                    {/* Mode badge */}
                     <span className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border"
                       style={{
                         backgroundColor: hexToRgba(mColor, 0.12),
@@ -598,7 +742,6 @@ export default function SchematicPage() {
                       <span className="material-symbols-outlined" style={{ fontSize: '0.7rem', lineHeight: 1 }}>{mIcon}</span>
                       {c.mode}
                     </span>
-                    {/* Stage badge */}
                     <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                       isLive
                         ? 'bg-emerald-950/50 text-emerald-400 border-emerald-800'
@@ -614,10 +757,11 @@ export default function SchematicPage() {
         )}
       </div>
 
-      {/* Edit / Delete modal */}
+      {/* Edit modal */}
       {modalOpen && editId && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={closeModal}>
-          <div className="bg-[#1e1e1e] border border-[#444] rounded-xl p-5 w-full max-w-xl shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-[#1e1e1e] border border-[#444] rounded-xl p-5 w-full max-w-2xl shadow-2xl overflow-y-auto max-h-[90vh]"
+            onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-[#E0E0E0] flex items-center gap-2">
                 <span className="material-symbols-outlined text-indigo-400" style={{ fontSize: '1rem', lineHeight: 1 }}>edit</span>
