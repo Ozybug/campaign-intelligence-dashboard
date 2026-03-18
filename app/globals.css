@@ -207,12 +207,29 @@ html, body {
   font-weight: 700 !important;
 }
 
-/* Dimmed event chips (Schematic view) */
+/* Dimmed event chips (Schematic view — live events only) */
 .calendar-container.events-dim .fc-event {
   opacity: 0.2 !important;
 }
 .calendar-container.events-dim .fc-event:hover {
   opacity: 0.85 !important;
+}
+
+/* Schematic planned events — always full opacity, dashed border, rectangular */
+.calendar-container .fc-event.schematic-event {
+  border-radius: 4px !important;
+  border-width: 1.5px !important;
+  border-style: dashed !important;
+  opacity: 1 !important;
+}
+.calendar-container .fc-event.schematic-event:hover {
+  border-radius: 4px !important;
+  opacity: 1 !important;
+  filter: brightness(1.15) !important;
+}
+/* Override the global dim so schematic events stay visible */
+.calendar-container.events-dim .fc-event.schematic-event {
+  opacity: 1 !important;
 }
 
 /* Crosshair cursor while selecting end date */
