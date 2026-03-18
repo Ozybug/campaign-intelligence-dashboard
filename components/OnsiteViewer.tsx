@@ -42,7 +42,11 @@ interface LogEntry { time: string; level: LogLevel; msg: string; }
 function isMoeReal(): boolean {
   if (typeof window === 'undefined') return false;
   const moe = (window as any).Moengage;
-  return !!moe && !Array.isArray(moe) && typeof moe.track_event === 'function';
+  if (!moe || typeof moe.track_event !== 'function') return false;
+  // MoEngage SDK modifies the stub array IN-PLACE — it never replaces window.Moengage
+  // with a non-array object. The reliable signal that the real SDK is live is the
+  // presence of 'landingPages', a method only the real SDK adds (not in our stub).
+  return 'landingPages' in moe;
 }
 
 // ---------------------------------------------------------------------------
