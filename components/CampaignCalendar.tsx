@@ -25,10 +25,10 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
       .catch(() => setLoading(false));
   }, []);
 
-  // ── Filter logic ────────────────────────────────────────────────────────────
-  // If a specific channel is chosen → filter to that channel only.
-  // If only a group is chosen → filter to all channels in that group.
-  // If neither → show all events.
+  // -- Filter logic ------------------------------------------------------------
+  // If a specific channel is chosen -> filter to that channel only.
+  // If only a group is chosen -> filter to all channels in that group.
+  // If neither -> show all events.
 
   const filteredEvents = (() => {
     if (activeChannel) {
@@ -45,11 +45,11 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
     return events;
   })();
 
-  // ── Interaction handlers ─────────────────────────────────────────────────────
+  // -- Interaction handlers -----------------------------------------------------
 
   const handleGroupClick = (groupId: string) => {
     if (activeGroup === groupId) {
-      // Deselect group → clear everything
+      // Deselect group -> clear everything
       setActiveGroup(null);
       setActiveChannel(null);
     } else {
@@ -76,7 +76,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
 
   const hasActiveFilter = activeGroup !== null || activeChannel !== null;
 
-  // ── Channels to show in the legend section (driven by group selection) ───────
+  // -- Channels to show in the legend section (driven by group selection) -------
   const legendChannels = activeGroup
     ? getChannelsForGroup(activeGroup as any)
     : CHANNEL_LEGEND.map(l => ({ id: l.channel, color: l.color, icon: l.icon }));
@@ -84,7 +84,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
   return (
     <div className="bg-[#1e1e1e] rounded-xl p-4 shadow-sm border border-[#444444]">
 
-      {/* ── Group filter bar ─────────────────────────────────────────────── */}
+      {/* -- Group filter bar ----------------------------------------------- */}
       <div className="mb-3">
         <p className="text-xs font-semibold text-[#888888] uppercase tracking-wider mb-1.5">Group</p>
         <div className="flex flex-wrap gap-2">
@@ -105,7 +105,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
                 title={isActive ? 'Clear group filter' : `Filter by ${label}`}
               >
                 {label}
-                {isActive && <span className="ml-1 opacity-70">×</span>}
+                {isActive && <span className="ml-1 opacity-70">x</span>}
               </button>
             );
           })}
@@ -120,7 +120,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
         </div>
       </div>
 
-      {/* ── Channel legend / channel filter ──────────────────────────────── */}
+      {/* -- Channel legend / channel filter -------------------------------- */}
       <div className="mb-4">
         <p className="text-xs font-semibold text-[#888888] uppercase tracking-wider mb-1.5">
           {activeGroup ? 'Channels in group' : 'All channels'}
@@ -148,14 +148,14 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
                 />
                 <span className="material-symbols-outlined" style={{ fontSize: '0.95rem', lineHeight: 1, verticalAlign: 'middle' }}>{icon}</span>
                 <span>{channel}</span>
-                {isActive && <span className="ml-0.5 text-[#B0B0B0] font-bold text-xs">×</span>}
+                {isActive && <span className="ml-0.5 text-[#B0B0B0] font-bold text-xs">x</span>}
               </button>
             );
           })}
         </div>
       </div>
 
-      {/* ── Collision warnings ────────────────────────────────────────────── */}
+      {/* -- Collision warnings ---------------------------------------------- */}
       {collisions.length > 0 && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-amber-600 font-semibold text-sm mb-1">
@@ -170,7 +170,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
         </div>
       )}
 
-      {/* ── Calendar ──────────────────────────────────────────────────────── */}
+      {/* -- Calendar -------------------------------------------------------- */}
       {loading ? (
         <div className="flex items-center justify-center h-64 text-[#888888]">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-400 mr-3" />
