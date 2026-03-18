@@ -14,6 +14,8 @@ interface Props {
   hideFilters?: boolean;
   extraEvents?: any[];
   onExtraEventClick?: (schematicId: string) => void;
+  /** When true, skips the /api/campaigns fetch — calendar shows only extraEvents */
+  blankCalendar?: boolean;
 }
 
 // Channels excluded from the filter UI (not relevant for current campaigns)
@@ -34,7 +36,7 @@ const formatDisplayDate = (dateStr: string) => {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-export default function CampaignCalendar({ onSelect, collisions, hideFilters = false, extraEvents = [], onExtraEventClick }: Props) {
+export default function CampaignCalendar({ onSelect, collisions, hideFilters = false, extraEvents = [], onExtraEventClick, blankCalendar = false }: Props) {
   const [events, setEvents]           = useState<CalendarEvent[]>([]);
   const [loading, setLoading]         = useState(true);
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
@@ -49,6 +51,7 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
   const calendarRef = useRef<FullCalendar>(null);
 
   useEffect(() => {
+    if (blankCalendar) { setLoading(false); return; }
     fetch('/api/campaigns')
       .then((res) => res.json())
       .then((data) => {
@@ -63,7 +66,7 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [blankCalendar]);
 
   // -- Filter logic ------------------------------------------------------------
   const filteredEvents = (() => {

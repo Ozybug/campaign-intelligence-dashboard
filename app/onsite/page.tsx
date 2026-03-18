@@ -506,6 +506,7 @@ export default function OnsitePage() {
                 onSelect={() => {}}
                 collisions={[]}
                 hideFilters
+                blankCalendar
                 extraEvents={extraEvents}
                 onExtraEventClick={openEdit}
               />
