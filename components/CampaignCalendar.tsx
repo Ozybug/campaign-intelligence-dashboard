@@ -11,6 +11,7 @@ interface StatsData { total: number; active: number; channels: number }
 interface Props {
   onSelect: (event: CalendarEvent) => void;
   collisions: CollisionWarning[];
+  hideFilters?: boolean;
 }
 
 // Channels excluded from the filter UI (not relevant for current campaigns)
@@ -31,7 +32,7 @@ const formatDisplayDate = (dateStr: string) => {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-export default function CampaignCalendar({ onSelect, collisions }: Props) {
+export default function CampaignCalendar({ onSelect, collisions, hideFilters = false }: Props) {
   const [events, setEvents]           = useState<CalendarEvent[]>([]);
   const [loading, setLoading]         = useState(true);
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
@@ -157,7 +158,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
     <div className="bg-[#1e1e1e] rounded-xl p-4 shadow-sm border border-[#444444]">
 
       {/* -- Filter panel: Groups + Channels + Stats --------------------------- */}
-      <div className="mb-4 flex gap-3 items-stretch">
+      {!hideFilters && <div className="mb-4 flex gap-3 items-stretch">
 
         {/* Groups box */}
         <div className="flex-shrink-0 w-28">
@@ -262,7 +263,7 @@ export default function CampaignCalendar({ onSelect, collisions }: Props) {
             ))}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* -- Date range indicator -------------------------------------------- */}
       {hasDateRange && (

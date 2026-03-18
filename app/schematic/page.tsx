@@ -44,7 +44,7 @@ export default function SchematicPage() {
 
       {/* Calendar */}
       <div className="max-w-7xl mx-auto p-6">
-        <CampaignCalendar onSelect={handleSelect} collisions={collisions} />
+        <CampaignCalendar onSelect={handleSelect} collisions={collisions} hideFilters />
       </div>
     </main>
   );
