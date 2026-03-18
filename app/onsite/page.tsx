@@ -124,7 +124,7 @@ interface FormState {
   redirectTarget: RedirectTarget;
   redirectTargetNames: string[];
   redirectInput: string;
-  priority: OsmPriority;
+  priority: OsmPriority | '';
   status: OsmStatus;
   startDate: string;
   endDate: string;
@@ -133,7 +133,7 @@ const EMPTY: FormState = {
   brand: 'Zostel', title: '',
   osmTarget: 'Destination', osmTargetNames: [], osmInput: '',
   redirectTarget: 'Destination', redirectTargetNames: [], redirectInput: '',
-  priority: 'Normal', status: 'Ideation',
+  priority: '', status: 'Ideation',
   startDate: '', endDate: '',
 };
 
@@ -302,7 +302,7 @@ function FormBody({ f, set, onSubmit, onDelete, isEdit }: {
         </div>
 
         <div>
-          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Priority</p>
+          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Priority <span className="text-rose-400">*</span></p>
           <div className="flex gap-1">
             {PRIORITY_ORDER.map(p => {
               const isActive = f.priority === p;
@@ -375,7 +375,7 @@ function FormBody({ f, set, onSubmit, onDelete, isEdit }: {
             Delete
           </button>
         )}
-        <button type="submit" disabled={!f.title.trim() || !f.startDate}
+        <button type="submit" disabled={!f.title.trim() || !f.startDate || !f.priority}
           className="ml-auto flex items-center gap-1.5 px-4 py-1.5 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors">
           <span className="material-symbols-outlined" style={{ fontSize: '0.9rem', lineHeight: 1 }}>
             {isEdit ? 'save' : 'add'}
@@ -428,7 +428,7 @@ export default function OnsitePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.startDate) return;
+    if (!form.title.trim() || !form.startDate || !form.priority) return;
     const finalNames = form.osmTarget === 'Homepage' ? [] :
       form.osmInput.trim()
         ? [...new Set([...form.osmTargetNames, form.osmInput.trim()])]
@@ -447,7 +447,7 @@ export default function OnsitePage() {
       osmTargetNames:      finalNames,
       redirectTarget:      form.redirectTarget,
       redirectTargetNames: finalRedirectNames,
-      priority:            form.priority,
+      priority:            form.priority as OsmPriority,
       status:              form.status,
       startDate:           form.startDate,
       endDate:             form.endDate || null,
