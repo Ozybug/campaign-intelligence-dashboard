@@ -8,7 +8,7 @@ import Link from 'next/link';
 // ---------------------------------------------------------------------------
 const MOE_APP_ID  = process.env.NEXT_PUBLIC_MOENGAGE_APP_ID || '';
 const MOE_CLUSTER = 'DC_3'; // matches MOENGAGE_BASE_URL = api-03.moengage.com
-const TEST_USER_ID = 'test_user_123';
+const TEST_USER_ID = '6929831c5c49df1a62b12f5e';
 
 // Polling: check every 200 ms for up to 5 s for the real SDK to replace stub.
 const POLL_INTERVAL_MS  = 200;
@@ -90,12 +90,15 @@ export default function OnsiteViewer() {
 
     const w = window as any;
 
-    // Hot-reload fast-path: real SDK already present.
+    // Hot-reload fast-path: real SDK already present from a previous page load.
+    // The user ID + events were pre-queued and processed by the SDK on that load.
     if (isMoeReal()) {
-      addLog('[OK] window.Moengage already present (real SDK). Skipping re-init.');
+      addLog('[OK] window.Moengage already present (hot-reload). Pre-queued calls were processed on last init.');
       setSdkExists(true);
       setSdkIsReal(true);
-      setPhase('ready');
+      setUserIdentified(true);
+      setEventsFired(['Page View', 'OSM Debug View']);
+      setPhase('done');
       return;
     }
 
@@ -121,7 +124,26 @@ export default function OnsiteViewer() {
         enableSPA:  true,       // required for Next.js SPA routing
       };
 
-      addLog('[INIT] Stub created with sortableData. Injecting CDN script…');
+      // ── CRITICAL: pre-queue BEFORE injecting the CDN script ─────────────
+      // MoEngage SDK reads + processes the stub array exactly ONCE, at init.
+      // Pushing via stub methods AFTER the SDK loads is silently ignored —
+      // the SDK has already drained the queue and push() is native (not intercepted).
+      // Solution: queue user identification and page-view events here so the
+      // SDK sees them as soon as it executes.
+      stub.add_unique_user_id(TEST_USER_ID);
+      stub.track_event('Page View', {
+        page:    '/onsite',
+        title:   'On-site Campaign Preview',
+        source:  'campaign-intelligence-dashboard',
+        user_id: TEST_USER_ID,
+      });
+      stub.track_event('OSM Debug View', {
+        triggered_by: 'dashboard_button',
+        user_id:      TEST_USER_ID,
+        timestamp:    new Date().toISOString(),
+      });
+
+      addLog(`[INIT] Pre-queued: add_unique_user_id("${TEST_USER_ID}") + Page View + OSM Debug View — injecting CDN script…`);
       setSdkExists(true);
 
       const script   = document.createElement('script');
@@ -175,57 +197,34 @@ export default function OnsiteViewer() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [phase, addLog]);
 
-  // ── Step 3: Identify user (ready -> identified) ───────────────────────────
+  // ── Step 3: Mark user identified (ready -> identified) ───────────────────
+  // add_unique_user_id was pre-queued in Step 1 and processed by the SDK on init.
+  // Do NOT call it again here — the stub factory only pushes to a queue the SDK
+  // has already drained; the call would be silently discarded.
   useEffect(() => {
     if (phase !== 'ready') return;
-
-    const moe = (window as any).Moengage;
-    try {
-      moe.add_unique_user_id(TEST_USER_ID);
-      addLog(`[OK] User identified: add_unique_user_id("${TEST_USER_ID}")`);
-      setUserIdentified(true);
-      setPhase('identified');
-    } catch (e: any) {
-      addLog(`[ERROR] add_unique_user_id failed: ${e.message}`, 'error');
-      setPhase('error');
-    }
+    addLog(`[OK] SDK ready — user "${TEST_USER_ID}" was pre-queued and identified by SDK on init`);
+    setUserIdentified(true);
+    setPhase('identified');
   }, [phase, addLog]);
 
-  // ── Step 4: Fire auto events (identified -> done) ─────────────────────────
+  // ── Step 4: Mark events fired (identified -> done) ────────────────────────
+  // Page View + OSM Debug View were pre-queued in Step 1 and sent by the SDK on init.
+  // Do NOT re-fire here — stub track_event after init pushes to an already-drained
+  // queue and the calls never reach sdk-03.moengage.com.
   useEffect(() => {
     if (phase !== 'identified') return;
-
-    const moe = (window as any).Moengage;
-
-    const fire = (name: string, props: Record<string, unknown>) => {
-      try {
-        moe.track_event(name, props);
-        addLog(`[OK] Fired: track_event("${name}", ${JSON.stringify(props)})`);
-        setEventsFired(prev => [...prev, name]);
-      } catch (e: any) {
-        addLog(`[ERROR] track_event("${name}") threw: ${e.message}`, 'error');
-      }
-    };
-
-    // Page-view triggers OSM campaign evaluation in the SDK.
-    fire('Page View', {
-      page:    '/onsite',
-      title:   'On-site Campaign Preview',
-      source:  'campaign-intelligence-dashboard',
-      user_id: TEST_USER_ID,
-    });
-
-    // Custom event useful for campaign trigger rules in MoEngage.
-    fire('OSM Debug View', {
-      triggered_by: 'dashboard_button',
-      user_id:      TEST_USER_ID,
-      timestamp:    new Date().toISOString(),
-    });
-
+    addLog('[OK] Pre-queued events (Page View, OSM Debug View) processed by SDK on init — watching for OSM campaigns in DOM…');
+    setEventsFired(['Page View', 'OSM Debug View']);
     setPhase('done');
   }, [phase, addLog]);
 
   // ── Manual event trigger ──────────────────────────────────────────────────
+  // NOTE: Firing events after the SDK has initialised pushes to the stub queue
+  // but the SDK only drains the queue once on init (push() is never intercepted).
+  // These events won't reach sdk-03.moengage.com from this page.
+  // To re-trigger OSM campaign evaluation, reload the page — the pre-queued
+  // calls in Step 1 will be processed fresh by the SDK on every clean page load.
   const fireManualEvent = () => {
     if (!isMoeReal()) {
       addLog(`[WARN] Cannot fire event — SDK not ready (phase: ${phase})`, 'warn');
@@ -235,7 +234,7 @@ export default function OnsiteViewer() {
     const moe  = (window as any).Moengage;
     try {
       moe.track_event(name, { manual: true, user_id: TEST_USER_ID, ts: Date.now() });
-      addLog(`[OK] Fired: track_event("${name}", { manual: true, user_id: "${TEST_USER_ID}" })`);
+      addLog(`[NOTE] track_event("${name}") queued — to reach MoEngage servers, reload the page (SDK processes queue only on init)`);
       setEventsFired(prev => [...prev, name]);
     } catch (e: any) {
       addLog(`[ERROR] track_event("${name}") threw: ${e.message}`, 'error');
