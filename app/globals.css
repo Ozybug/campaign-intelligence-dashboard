@@ -207,6 +207,14 @@ html, body {
   font-weight: 700 !important;
 }
 
+/* Dimmed event chips (Schematic view) */
+.calendar-container.events-dim .fc-event {
+  opacity: 0.2 !important;
+}
+.calendar-container.events-dim .fc-event:hover {
+  opacity: 0.85 !important;
+}
+
 /* Crosshair cursor while selecting end date */
 .calendar-container.selecting-end .fc-daygrid-day {
   cursor: crosshair !important;

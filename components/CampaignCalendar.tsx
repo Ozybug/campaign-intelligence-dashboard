@@ -318,7 +318,7 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
           Loading campaigns...
         </div>
       ) : (
-        <div className={`calendar-container${dateRange.start && !dateRange.end ? ' selecting-end' : ''}`}>
+        <div className={`calendar-container${dateRange.start && !dateRange.end ? ' selecting-end' : ''}${hideFilters ? ' events-dim' : ''}`}>
           <FullCalendar
             ref={calendarRef}
             plugins={[dayGridPlugin, interactionPlugin]}
