@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { CollisionWarning } from '@/types/campaign';
+import MiniCalendar from '@/components/MiniCalendar';
 
 const CampaignCalendar = dynamic(() => import('@/components/CampaignCalendar'), { ssr: false });
 
@@ -192,16 +193,14 @@ function FormBody({ f, set, onSubmit, onDelete, isEdit }: {
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
             Start Date <span className="text-rose-400">*</span>
           </p>
-          <input type="date" value={f.startDate} onChange={e => set('startDate', e.target.value)} required
-            className="bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] outline-none focus:border-[#555] transition-colors" />
+          <MiniCalendar value={f.startDate} onChange={v => { set('startDate', v); if (f.endDate && v > f.endDate) set('endDate', ''); }} placeholder="Pick start date" />
         </div>
 
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
             End Date <span className="ml-1 text-[#555] font-normal normal-case">(blank = ∞)</span>
           </p>
-          <input type="date" value={f.endDate} min={f.startDate} onChange={e => set('endDate', e.target.value)}
-            className="bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] outline-none focus:border-[#555] transition-colors" />
+          <MiniCalendar value={f.endDate} onChange={v => set('endDate', v)} minDate={f.startDate || undefined} placeholder="Pick end date (opt.)" />
         </div>
 
         {/* Indefinite indicator */}
