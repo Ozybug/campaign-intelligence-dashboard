@@ -368,10 +368,16 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
             eventContent={(arg) => {
               // ── Schematic planned event ──
               if (arg.event.extendedProps?.isSchematic) {
-                const { icon, indefinite, format } = arg.event.extendedProps;
+                const { icon, indefinite, format, mode } = arg.event.extendedProps;
+                // mode icon: Shell = draft (slate), Curated = task_alt (emerald)
+                const modeIcon  = mode === 'Shell' ? 'draft' : mode === 'Curated' ? 'task_alt' : null;
+                const modeColor = mode === 'Shell' ? '#94A3B8' : '#34D399';
                 return (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '3px', width: '100%', padding: '0 3px', overflow: 'hidden' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '0.7rem', lineHeight: 1, flexShrink: 0 }}>{icon}</span>
+                    {modeIcon && (
+                      <span className="material-symbols-outlined" style={{ fontSize: '0.6rem', lineHeight: 1, flexShrink: 0, color: modeColor }}>{modeIcon}</span>
+                    )}
                     <span style={{ fontSize: '0.65rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
                       {arg.event.title}
                     </span>

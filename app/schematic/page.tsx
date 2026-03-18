@@ -12,9 +12,13 @@ type SchFormat   = 'One Time' | 'Event Triggered' | 'Recurring';
 type RecInterval = 'daily' | 'weekly' | 'monthly' | 'custom';
 type CustomUnit  = 'day' | 'week' | 'month' | 'year';
 type Stage       = 'schematic' | 'live';
+type Brand       = 'Zostel' | 'Zo Trips';
+type SchMode     = 'Shell' | 'Curated';
 
 interface SchematicCampaign {
   id: string;
+  brand: Brand;
+  mode: SchMode;
   title: string;
   channel: SchChannel;
   format: SchFormat;
@@ -34,6 +38,9 @@ interface SchematicCampaign {
 // ── Constants ──────────────────────────────────────────────────────────────────
 const CHANNEL_COLORS: Record<SchChannel, string> = { Email: '#34D399', Push: '#818CF8' };
 const CHANNEL_ICONS:  Record<SchChannel, string> = { Email: 'mail',    Push: 'send_to_mobile' };
+const BRAND_COLORS:   Record<Brand, string>      = { Zostel: '#818CF8', 'Zo Trips': '#34D399' };
+const MODE_COLORS:    Record<SchMode, string>    = { Shell: '#94A3B8', Curated: '#34D399' };
+const MODE_ICONS:     Record<SchMode, string>    = { Shell: 'draft',   Curated: 'task_alt' };
 const LS_KEY = 'schematic_campaigns_v1';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -58,14 +65,15 @@ const formatDate = (str: string) => {
 function expandToEvents(c: SchematicCampaign): any[] {
   if (c.stage === 'live') return [];
 
-  const color = CHANNEL_COLORS[c.channel];
+  const color      = CHANNEL_COLORS[c.channel];
+  const bgOpacity  = c.mode === 'Shell' ? 0.10 : 0.18; // Shell chips appear dimmer
   const isIndefinite = c.endDate === null;
   const horizon = toDateStr(addYears(new Date(), 1));
   const effectiveEnd = isIndefinite ? horizon : c.endDate!;
 
   const base = {
-    backgroundColor: hexToRgba(color, 0.18),
-    borderColor:     color,
+    backgroundColor: hexToRgba(color, bgOpacity),
+    borderColor:     c.mode === 'Shell' ? hexToRgba(color, 0.5) : color,
     textColor:       color,
     classNames:      ['schematic-event'],
     extendedProps: {
@@ -78,6 +86,8 @@ function expandToEvents(c: SchematicCampaign): any[] {
       messageTitle: c.messageTitle,
       subtitle:     c.subtitle,
       messageBody:  c.messageBody,
+      mode:         c.mode,
+      brand:        c.brand,
     },
   };
 
@@ -107,12 +117,15 @@ function expandToEvents(c: SchematicCampaign): any[] {
 
 // ── Form state ─────────────────────────────────────────────────────────────────
 interface FormState {
+  brand: Brand | '';
+  mode: SchMode | '';
   title: string; channel: SchChannel; format: SchFormat;
   startDate: string; endDate: string;
   interval: RecInterval; customValue: number; customUnit: CustomUnit;
   messageTitle: string; subtitle: string; messageBody: string;
 }
 const EMPTY: FormState = {
+  brand: '', mode: '',
   title: '', channel: 'Email', format: 'One Time',
   startDate: '', endDate: '',
   interval: 'weekly', customValue: 1, customUnit: 'week',
@@ -132,8 +145,27 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
 }) {
   return (
     <form onSubmit={onSubmit} className="space-y-3">
-      {/* Row 1: Channel · Title · Format */}
+      {/* Row 1: Brand · Channel · Title · Format */}
       <div className="flex flex-wrap gap-3 items-end">
+        {/* Brand */}
+        <div>
+          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
+            Brand <span className="text-rose-400">*</span>
+          </p>
+          <div className="flex gap-1">
+            {(['Zostel', 'Zo Trips'] as Brand[]).map(b => (
+              <button key={b} type="button" onClick={() => set('brand', b)}
+                className="px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
+                style={f.brand === b
+                  ? { backgroundColor: hexToRgba(BRAND_COLORS[b], 0.15), borderColor: BRAND_COLORS[b], color: BRAND_COLORS[b] }
+                  : { backgroundColor: '#161616', borderColor: '#333', color: '#888' }}>
+                {b}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Channel */}
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Channel</p>
           <div className="flex gap-1">
@@ -152,7 +184,9 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         </div>
 
         <div className="flex-1 min-w-[180px]">
-          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Campaign Title</p>
+          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
+            Campaign Title <span className="text-rose-400">*</span>
+          </p>
           <input type="text" placeholder="e.g. Summer Sale Blast" value={f.title} onChange={e => set('title', e.target.value)} required
             className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors" />
         </div>
@@ -203,7 +237,7 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         </div>
       )}
 
-      {/* Row 3: Dates */}
+      {/* Row 3: Dates · Mode (right of end date) */}
       <div className="flex flex-wrap gap-3 items-end">
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
@@ -226,6 +260,30 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
             <span className="text-[10px]">indefinite</span>
           </div>
         )}
+
+        {/* Mode toggle — blank space on the right of end date */}
+        <div className="ml-auto">
+          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
+            Mode <span className="text-rose-400">*</span>
+          </p>
+          <div className="flex gap-1">
+            {(['Shell', 'Curated'] as SchMode[]).map(m => {
+              const isActive = f.mode === m;
+              const color    = MODE_COLORS[m];
+              const icon     = MODE_ICONS[m];
+              return (
+                <button key={m} type="button" onClick={() => set('mode', m)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
+                  style={isActive
+                    ? { backgroundColor: hexToRgba(color, 0.15), borderColor: color, color }
+                    : { backgroundColor: '#161616', borderColor: '#333', color: '#888' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '0.8rem', lineHeight: 1 }}>{icon}</span>
+                  {m}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* Row 4: Message content — Push: Title + Subtitle + Body | Email: Subject + Agenda */}
@@ -233,11 +291,14 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         {/* First-line field: Push = Message Title, Email = Subject Line */}
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
-            {f.channel === 'Push' ? 'Message Title' : 'Email Subject Line'} <span className="text-rose-400">*</span>
+            {f.channel === 'Push' ? 'Message Title' : 'Email Subject Line'}
+            {f.mode === 'Curated' && <span className="text-rose-400 ml-0.5">*</span>}
+            {f.mode === 'Shell'   && <span className="ml-1.5 text-[#555] font-normal normal-case tracking-normal text-[9px]">optional in Shell</span>}
           </p>
           <input type="text"
             placeholder={f.channel === 'Push' ? 'e.g. Work in NCR ❌ Workation in NCR ✅' : 'e.g. Your Zostel booking is confirmed 🎉'}
-            value={f.messageTitle} onChange={e => set('messageTitle', e.target.value)} required
+            value={f.messageTitle} onChange={e => set('messageTitle', e.target.value)}
+            required={f.mode === 'Curated'}
             className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors" />
         </div>
         {/* Push: Subtitle + Body side-by-side */}
@@ -292,7 +353,11 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
             Delete
           </button>
         )}
-        <button type="submit" disabled={!f.title.trim() || !f.startDate || !f.messageTitle.trim()}
+        <button type="submit"
+          disabled={
+            !f.brand || !f.mode || !f.title.trim() || !f.startDate
+            || (f.mode === 'Curated' && !f.messageTitle.trim())
+          }
           className="ml-auto flex items-center gap-1.5 px-4 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors">
           <span className="material-symbols-outlined" style={{ fontSize: '0.9rem', lineHeight: 1 }}>
             {isEdit ? 'save' : 'add'}
@@ -318,8 +383,13 @@ export default function SchematicPage() {
       const raw = localStorage.getItem(LS_KEY);
       if (raw) {
         const parsed = JSON.parse(raw) as any[];
-        // Migrate: ensure every campaign has a stage field
-        setCampaigns(parsed.map(c => ({ stage: 'schematic' as Stage, ...c })));
+        // Migrate: ensure every campaign has stage, brand, and mode fields
+        setCampaigns(parsed.map(c => ({
+          stage: 'schematic' as Stage,
+          brand: 'Zostel'   as Brand,   // default for pre-brand campaigns
+          mode:  'Curated'  as SchMode, // default for pre-mode campaigns (had msg title required)
+          ...c,
+        })));
       }
     } catch {}
   }, []);
@@ -341,11 +411,16 @@ export default function SchematicPage() {
     const c = campaigns.find(x => x.id === id);
     if (!c) return;
     setForm({
-      title: c.title, channel: c.channel, format: c.format,
-      startDate: c.startDate, endDate: c.endDate ?? '',
-      interval:    c.recurring?.interval    ?? 'weekly',
-      customValue: c.recurring?.customValue ?? 1,
-      customUnit:  c.recurring?.customUnit  ?? 'week',
+      brand:        c.brand ?? 'Zostel',
+      mode:         c.mode  ?? 'Curated',
+      title:        c.title,
+      channel:      c.channel,
+      format:       c.format,
+      startDate:    c.startDate,
+      endDate:      c.endDate ?? '',
+      interval:     c.recurring?.interval    ?? 'weekly',
+      customValue:  c.recurring?.customValue ?? 1,
+      customUnit:   c.recurring?.customUnit  ?? 'week',
       messageTitle: c.messageTitle ?? '',
       subtitle:     c.subtitle     ?? '',
       messageBody:  c.messageBody  ?? '',
@@ -356,11 +431,14 @@ export default function SchematicPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.startDate || !form.messageTitle.trim()) return;
+    if (!form.brand || !form.mode || !form.title.trim() || !form.startDate) return;
+    if (form.mode === 'Curated' && !form.messageTitle.trim()) return;
 
     const existing = campaigns.find(c => c.id === editId);
     const campaign: SchematicCampaign = {
       id:           editId ?? genId(),
+      brand:        form.brand as Brand,
+      mode:         form.mode  as SchMode,
       title:        form.title.trim(),
       channel:      form.channel,
       format:       form.format,
@@ -470,9 +548,12 @@ export default function SchematicPage() {
             <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-3">Campaign Feed</p>
             <div className="space-y-0.5">
               {feedCampaigns.map(c => {
-                const color  = CHANNEL_COLORS[c.channel];
-                const icon   = CHANNEL_ICONS[c.channel];
-                const isLive = c.stage === 'live';
+                const color    = CHANNEL_COLORS[c.channel];
+                const icon     = CHANNEL_ICONS[c.channel];
+                const bColor   = BRAND_COLORS[c.brand] ?? '#818CF8';
+                const mColor   = MODE_COLORS[c.mode]   ?? '#94A3B8';
+                const mIcon    = MODE_ICONS[c.mode]    ?? 'draft';
+                const isLive   = c.stage === 'live';
                 return (
                   <button
                     key={c.id}
@@ -487,7 +568,18 @@ export default function SchematicPage() {
                     </span>
                     {/* Title + meta */}
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium truncate ${isLive ? 'text-[#888]' : 'text-[#E0E0E0]'}`}>{c.title}</p>
+                      <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                        {/* Brand badge */}
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase border flex-shrink-0"
+                          style={{
+                            backgroundColor: hexToRgba(bColor, 0.1),
+                            borderColor:     hexToRgba(bColor, 0.4),
+                            color:           bColor,
+                          }}>
+                          {c.brand}
+                        </span>
+                        <p className={`text-sm font-medium truncate ${isLive ? 'text-[#888]' : 'text-[#E0E0E0]'}`}>{c.title}</p>
+                      </div>
                       <p className="text-[11px] text-[#555]">
                         {c.channel}
                         {' · '}
@@ -496,6 +588,16 @@ export default function SchematicPage() {
                         {c.endDate ? ` → ${formatDate(c.endDate)}` : ' → ∞'}
                       </p>
                     </div>
+                    {/* Mode badge */}
+                    <span className="flex-shrink-0 flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border"
+                      style={{
+                        backgroundColor: hexToRgba(mColor, 0.12),
+                        borderColor:     hexToRgba(mColor, 0.4),
+                        color:           mColor,
+                      }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '0.7rem', lineHeight: 1 }}>{mIcon}</span>
+                      {c.mode}
+                    </span>
                     {/* Stage badge */}
                     <span className={`flex-shrink-0 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                       isLive
@@ -520,6 +622,21 @@ export default function SchematicPage() {
               <h3 className="text-sm font-semibold text-[#E0E0E0] flex items-center gap-2">
                 <span className="material-symbols-outlined text-indigo-400" style={{ fontSize: '1rem', lineHeight: 1 }}>edit</span>
                 Edit Campaign
+                {editCampaign && (() => {
+                  const mColor = MODE_COLORS[editCampaign.mode] ?? '#94A3B8';
+                  const mIcon  = MODE_ICONS[editCampaign.mode]  ?? 'draft';
+                  return (
+                    <span className="flex items-center gap-1 ml-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border"
+                      style={{
+                        backgroundColor: hexToRgba(mColor, 0.12),
+                        borderColor:     hexToRgba(mColor, 0.4),
+                        color:           mColor,
+                      }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '0.65rem', lineHeight: 1 }}>{mIcon}</span>
+                      {editCampaign.mode}
+                    </span>
+                  );
+                })()}
                 {editCampaign && (
                   <span className={`ml-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
                     editCampaign.stage === 'live'
