@@ -12,6 +12,8 @@ interface Props {
   onSelect: (event: CalendarEvent) => void;
   collisions: CollisionWarning[];
   hideFilters?: boolean;
+  extraEvents?: any[];
+  onExtraEventClick?: (schematicId: string) => void;
 }
 
 // Channels excluded from the filter UI (not relevant for current campaigns)
@@ -32,7 +34,7 @@ const formatDisplayDate = (dateStr: string) => {
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
-export default function CampaignCalendar({ onSelect, collisions, hideFilters = false }: Props) {
+export default function CampaignCalendar({ onSelect, collisions, hideFilters = false, extraEvents = [], onExtraEventClick }: Props) {
   const [events, setEvents]           = useState<CalendarEvent[]>([]);
   const [loading, setLoading]         = useState(true);
   const [activeGroup, setActiveGroup] = useState<string | null>(null);
@@ -329,7 +331,7 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
               right:  'dayGridMonth,dayGridWeek',
             }}
             buttonText={{ today: 'Today', month: 'Month', week: 'Week' }}
-            events={filteredEvents as any}
+            events={[...filteredEvents, ...extraEvents] as any}
             dateClick={handleDateClick}
             dayCellClassNames={(arg) => {
               const dateStr = toLocalDateStr(arg.date);
@@ -338,13 +340,35 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
               if (start && !end) {
                 if (dateStr === start) classes.push('date-range-start-only');
               } else if (start && end) {
-                if (dateStr === start)                    classes.push('date-range-start');
-                else if (dateStr === end)                 classes.push('date-range-end');
+                if (dateStr === start)                     classes.push('date-range-start');
+                else if (dateStr === end)                  classes.push('date-range-end');
                 else if (dateStr > start && dateStr < end) classes.push('date-range-in');
               }
               return classes;
             }}
+            eventClassNames={(arg) => {
+              const classes = ['cursor-pointer', 'transition-opacity'];
+              if (arg.event.extendedProps?.isSchematic) classes.push('schematic-event');
+              return classes;
+            }}
             eventContent={(arg) => {
+              // ── Schematic planned event ──
+              if (arg.event.extendedProps?.isSchematic) {
+                const { icon, indefinite, format } = arg.event.extendedProps;
+                return (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px', width: '100%', padding: '0 3px', overflow: 'hidden' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '0.7rem', lineHeight: 1, flexShrink: 0 }}>{icon}</span>
+                    <span style={{ fontSize: '0.65rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                      {arg.event.title}
+                    </span>
+                    {indefinite && <span style={{ fontSize: '0.8rem', lineHeight: 1, flexShrink: 0, opacity: 0.8 }}>∞</span>}
+                    {format === 'Recurring' && (
+                      <span className="material-symbols-outlined" style={{ fontSize: '0.6rem', lineHeight: 1, flexShrink: 0, opacity: 0.7 }}>repeat</span>
+                    )}
+                  </div>
+                );
+              }
+              // ── Live MoEngage event ──
               const channel = arg.event.extendedProps?.channel || '';
               const entry = CHANNEL_LEGEND.find(l => l.channel === channel);
               const icon = entry?.icon || 'campaign';
@@ -356,12 +380,15 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
               );
             }}
             eventClick={(info) => {
+              if (info.event.extendedProps?.isSchematic) {
+                onExtraEventClick?.(info.event.extendedProps.schematicId);
+                return;
+              }
               const event = events.find((e) => e.id === info.event.id);
               if (event) onSelect(event);
             }}
             eventDisplay="block"
             height="auto"
-            eventClassNames="cursor-pointer transition-opacity"
           />
         </div>
       )}
