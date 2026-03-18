@@ -6,10 +6,11 @@ const MOENGAGE_APP_ID   = process.env.MOENGAGE_APP_ID    || '';
 const MOENGAGE_SECRET_KEY = process.env.MOENGAGE_SECRET_KEY || '';
 const MOENGAGE_BASE_URL = process.env.MOENGAGE_BASE_URL  || 'https://api-03.moengage.com';
 
-// Channels supported by the campaigns/search API.
-// ONSITE returns 400 "channels is invalid passed value" — OSM is fetched via
-// the Stats API instead (see fetchOnsiteCampaignsViaStatsApi below).
-const SEARCH_API_CHANNELS = ['PUSH', 'EMAIL'];
+// Channels to try via the campaigns/search API.
+// ONSITE (no underscore) returns 400 "channels is invalid passed value".
+// ON_SITE (with underscore) is attempted first; if it also returns 400 the
+// error is swallowed and we fall through to the Stats-API OSM discovery path.
+const SEARCH_API_CHANNELS = ['PUSH', 'EMAIL', 'ON_SITE'];
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 function getAuthHeader(): string {
@@ -138,10 +139,16 @@ async function fetchCampaignsByChannel(channel: string): Promise<Campaign[]> {
                     if (page > 5) hasMore = false;
           }
       } catch (error: any) {
-              console.error(
-                        `[MoEngage] Error fetching ${channel} campaigns:`,
-                        JSON.stringify(error?.response?.data || error?.message)
-                      );
+              const status   = error?.response?.status;
+              const errData  = error?.response?.data;
+              const errMsg   = JSON.stringify(errData || error?.message);
+              if (status === 400) {
+                        // 400 means this channel identifier is not accepted by the search API.
+                        // Log and bail out — the caller will fall back to Stats API discovery.
+                        console.warn(`[MoEngage] ${channel} not supported by search API (400): ${errMsg}`);
+              } else {
+                        console.error(`[MoEngage] Error fetching ${channel} campaigns (${status}): ${errMsg}`);
+              }
               hasMore = false;
       }
   }
@@ -162,15 +169,41 @@ async function fetchCampaignsByChannel(channel: string): Promise<Campaign[]> {
 // where MOENGAGE_SECRET_KEY = Campaign Report key from Settings > Account > APIs.
 // This is the same key already used for /api/campaign-stats.
 
-const OSM_PLATFORM_KEYS = new Set(['WEB', 'MWEB', 'ALL_PLATFORMS', 'UNKNOWN']);
+// Platform keys that are definitively NOT On-site (OSM).
+// If a campaign entry has ANY of these, it belongs to a different channel.
+const NON_OSM_PLATFORMS = new Set([
+  'ANDROID', 'IOS', 'KINDLE', 'WINDOWS',  // Push
+  'EMAIL',                                  // Email
+  'SMS', 'MMS', 'RCS',                      // Messaging
+  'WHATSAPP',                               // WhatsApp
+  'FACEBOOK', 'GOOGLE',                     // Audience
+]);
+
+// Platform keys that are positive indicators for OSM.
+const OSM_PLATFORM_KEYS = new Set([
+  'WEB', 'MWEB', 'OSM', 'OSM_WEB', 'ONSITE', 'ON_SITE',
+  'PERSONALIZATION', 'ALL_PLATFORMS', 'UNKNOWN',
+]);
 
 function isOsmEntry(entry: any): boolean {
-    const platforms = Object.keys(entry?.platforms ?? {});
-    // OSM campaigns have WEB / MWEB platforms (not ANDROID / IOS / EMAIL / SMS etc.)
-  // They will NOT have typical push/email platform keys
-  const hasPush = platforms.some(p => ['ANDROID', 'IOS', 'EMAIL', 'SMS', 'WHATSAPP'].includes(p.toUpperCase()));
-    const hasOsmPlatform = platforms.some(p => OSM_PLATFORM_KEYS.has(p.toUpperCase()));
-    return hasOsmPlatform && !hasPush;
+  const platforms = Object.keys(entry?.platforms ?? {}).map(p => p.toUpperCase());
+
+  // If there are no platforms at all, we can't tell — skip.
+  if (platforms.length === 0) return false;
+
+  // If any platform is a known non-OSM one, it's not On-site.
+  if (platforms.some(p => NON_OSM_PLATFORMS.has(p))) return false;
+
+  // Positive match: at least one OSM platform key present.
+  // Also accept if ALL platforms are unrecognised (could be a new OSM key).
+  const hasKnownOsm = platforms.some(p => OSM_PLATFORM_KEYS.has(p));
+  const allUnknown  = platforms.every(p => !NON_OSM_PLATFORMS.has(p) && !OSM_PLATFORM_KEYS.has(p));
+
+  if (hasKnownOsm || allUnknown) {
+    console.log(`[MoEngage] OSM candidate platforms: ${platforms.join(', ')}`);
+    return true;
+  }
+  return false;
 }
 
 function extractOsmStatsFromEntry(campaignId: string, entries: any[]): {
@@ -294,11 +327,22 @@ async function fetchOnsiteCampaignsViaStatsApi(): Promise<Campaign[]> {
               } catch (error: any) {
                         const status = error?.response?.status;
                         const msg = JSON.stringify(error?.response?.data || error?.message);
-                        console.error(`[MoEngage] Stats API error (${window.start}→${window.end}):`, msg);
-                        // 403 = Stats API not enabled on plan; no point retrying
-                if (status === 403 || status === 401) {
-                            return [];
-                }
+                        if (status === 403) {
+                          console.error(
+                            '[MoEngage] Stats API returned 403 — the Campaign Report (Stats API) feature ' +
+                            'is not enabled on your MoEngage plan. On-site campaigns cannot be loaded. ' +
+                            'Contact MoEngage support to enable the Stats API feature.'
+                          );
+                          return [];
+                        }
+                        if (status === 401) {
+                          console.error(
+                            '[MoEngage] Stats API returned 401 — check that MOENGAGE_SECRET_KEY is the ' +
+                            '"Campaign Report" key from MoEngage Settings > Account > APIs (not the Data API key).'
+                          );
+                          return [];
+                        }
+                        console.error(`[MoEngage] Stats API error (${window.start}→${window.end}) status=${status}:`, msg);
                         hasMore = false;
               }
       }
