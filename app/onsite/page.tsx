@@ -116,7 +116,7 @@ function expandOnsiteToEvent(c: OnSiteCampaign): any {
 
 // ── Form state ─────────────────────────────────────────────────────────────────
 interface FormState {
-  brand: Brand;
+  brand: Brand | '';
   title: string;
   osmTarget: OsmTarget;
   osmTargetNames: string[];
@@ -125,24 +125,25 @@ interface FormState {
   redirectTargetNames: string[];
   redirectInput: string;
   priority: OsmPriority | '';
-  status: OsmStatus;
+  status: OsmStatus | '';
   startDate: string;
   endDate: string;
 }
 const EMPTY: FormState = {
-  brand: 'Zostel', title: '',
+  brand: '', title: '',
   osmTarget: 'Destination', osmTargetNames: [], osmInput: '',
   redirectTarget: 'Destination', redirectTargetNames: [], redirectInput: '',
-  priority: '', status: 'Ideation',
+  priority: '', status: '',
   startDate: '', endDate: '',
 };
 
 // ── Chip input ─────────────────────────────────────────────────────────────────
-function ChipInput({ label, names, input, onInput, onAdd, onRemove }: {
+function ChipInput({ label, names, input, onInput, onAdd, onRemove, required }: {
   label: string; names: string[]; input: string;
   onInput:  (v: string) => void;
   onAdd:    (v: string) => void;
   onRemove: (v: string) => void;
+  required?: boolean;
 }) {
   const commit = (raw: string) => {
     const v = raw.trim();
@@ -161,7 +162,7 @@ function ChipInput({ label, names, input, onInput, onAdd, onRemove }: {
   return (
     <div>
       <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
-        {label}{' '}
+        {label}{required && <span className="text-rose-400 ml-0.5">*</span>}{' '}
         <span className="text-[#555] font-normal normal-case tracking-normal">— comma or ↵ to add</span>
       </p>
       <div className="min-h-[34px] flex flex-wrap gap-1.5 items-center bg-[#161616] border border-[#333] rounded-lg px-2 py-1.5 focus-within:border-[#555] transition-colors">
@@ -206,7 +207,7 @@ function FormBody({ f, set, onSubmit, onDelete, isEdit }: {
       {/* Row 1: Brand · Campaign Title */}
       <div className="flex flex-wrap gap-3 items-end">
         <div>
-          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Brand</p>
+          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Brand <span className="text-rose-400">*</span></p>
           <div className="flex gap-1">
             {(['Zostel', 'Zo Trips'] as Brand[]).map(b => (
               <button key={b} type="button" onClick={() => set('brand', b)}
@@ -267,6 +268,7 @@ function FormBody({ f, set, onSubmit, onDelete, isEdit }: {
               onInput={v  => set('osmInput', v)}
               onAdd={addChip}
               onRemove={removeChip}
+              required
             />
           </div>
         )}
@@ -276,7 +278,7 @@ function FormBody({ f, set, onSubmit, onDelete, isEdit }: {
       <div className="flex flex-wrap gap-3 items-start">
         <div className="flex flex-wrap gap-3 items-start">
           <div>
-            <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Redirect Target</p>
+            <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Redirect Target <span className="text-rose-400">*</span></p>
             <select value={f.redirectTarget}
               onChange={e => {
                 const v = e.target.value as RedirectTarget;
@@ -296,6 +298,7 @@ function FormBody({ f, set, onSubmit, onDelete, isEdit }: {
                 onInput={v  => set('redirectInput', v)}
                 onAdd={addRedirectChip}
                 onRemove={removeRedirectChip}
+                required
               />
             </div>
           )}
@@ -321,7 +324,7 @@ function FormBody({ f, set, onSubmit, onDelete, isEdit }: {
         </div>
 
         <div>
-          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Status</p>
+          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Status <span className="text-rose-400">*</span></p>
           <div className="flex gap-1">
             {(['Ideation', 'Scheduled', 'Live', 'Canned'] as OsmStatus[]).map(s => {
               const isActive = f.status === s;
@@ -375,7 +378,11 @@ function FormBody({ f, set, onSubmit, onDelete, isEdit }: {
             Delete
           </button>
         )}
-        <button type="submit" disabled={!f.title.trim() || !f.startDate || !f.priority}
+        <button type="submit" disabled={
+            !f.brand || !f.title.trim() || !f.startDate || !f.priority || !f.status
+            || (f.osmTarget !== 'Homepage' && f.osmTargetNames.length === 0 && !f.osmInput.trim())
+            || (f.redirectTarget !== 'Homepage' && f.redirectTargetNames.length === 0 && !f.redirectInput.trim())
+          }
           className="ml-auto flex items-center gap-1.5 px-4 py-1.5 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors">
           <span className="material-symbols-outlined" style={{ fontSize: '0.9rem', lineHeight: 1 }}>
             {isEdit ? 'save' : 'add'}
@@ -428,7 +435,12 @@ export default function OnsitePage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.title.trim() || !form.startDate || !form.priority) return;
+    if (!form.brand || !form.title.trim() || !form.startDate || !form.priority || !form.status) return;
+    const needsOsmName      = form.osmTarget      !== 'Homepage';
+    const needsRedirectName = form.redirectTarget !== 'Homepage';
+    if (needsOsmName      && form.osmTargetNames.length === 0      && !form.osmInput.trim())     return;
+    if (needsRedirectName && form.redirectTargetNames.length === 0 && !form.redirectInput.trim()) return;
+
     const finalNames = form.osmTarget === 'Homepage' ? [] :
       form.osmInput.trim()
         ? [...new Set([...form.osmTargetNames, form.osmInput.trim()])]
@@ -441,14 +453,14 @@ export default function OnsitePage() {
 
     const campaign: OnSiteCampaign = {
       id:                  editId ?? genId(),
-      brand:               form.brand,
+      brand:               form.brand as Brand,
       title:               form.title.trim(),
       osmTarget:           form.osmTarget,
       osmTargetNames:      finalNames,
       redirectTarget:      form.redirectTarget,
       redirectTargetNames: finalRedirectNames,
       priority:            form.priority as OsmPriority,
-      status:              form.status,
+      status:              form.status as OsmStatus,
       startDate:           form.startDate,
       endDate:             form.endDate || null,
     };
