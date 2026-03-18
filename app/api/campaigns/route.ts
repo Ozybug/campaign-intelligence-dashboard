@@ -53,26 +53,15 @@ export async function GET() {
       const startDay  = startDate.slice(0, 10)
       const endDay    = endDate.slice(0, 10)
 
-      let eventEnd: string
-      if (
-        c.campaignType === 'ONE_TIME' ||
-        c.campaignType === 'BROADCAST_LIVE_ACTIVITY'
-      ) {
-        if (startDay === endDay) {
-          // Single-day ONE_TIME: use a date-only exclusive end so FullCalendar
-          // renders the block only within startDay regardless of timezone.
-          // end="2026-03-05" keeps Happy_Holi on Mar 4 even for UTC+5:30 users.
-          eventEnd = nextUTCDay(startDate)
-        } else {
-          eventEnd = endDate
-        }
-      } else {
-        eventEnd = end > start ? endDate : nextUTCDay(startDate)
-      }
+      // Use the next day as exclusive end for single-day events;
+      // for genuinely multi-day campaigns, use endDay + 1 so FullCalendar
+      // renders the banner inclusive of the end date.
+      const eventEndDay = endDay > startDay ? nextUTCDay(endDate) : nextUTCDay(startDate)
+      const eventEnd = eventEndDay
 
       return {
         title: c.name,
-        start: startDate,
+        start: startDay,   // date-only to avoid UTC→local timezone shift
         end:   eventEnd,
         backgroundColor: CHANNEL_COLORS[c.channel] || '#6B7280',
         borderColor:     CHANNEL_COLORS[c.channel] || '#6B7280',
