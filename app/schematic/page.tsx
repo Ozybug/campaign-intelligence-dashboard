@@ -76,7 +76,8 @@ function expandToEvents(c: SchematicCampaign): any[] {
   };
 
   if (c.format !== 'Recurring') {
-    return [{ ...base, id: c.id, title: c.title, start: c.startDate, end: effectiveEnd >= c.startDate ? effectiveEnd : c.startDate }];
+    // Single chip on startDate only — don't span to endDate (avoids multi-day banner)
+    return [{ ...base, id: c.id, title: c.title, start: c.startDate }];
   }
 
   const { interval = 'weekly', customValue = 1, customUnit = 'week' } = c.recurring ?? {};
