@@ -43,12 +43,12 @@ export const CHANNELS: Record<Channel, ChannelConfig> = {
     Push: {
           id: 'Push', group: 'OUTBOUND', hasSubTypes: true, directLaunch: false,
           subTypes: ['One Time', 'Periodic', 'Event Triggered', 'Business Event Triggered', 'Device Triggered', 'Location Triggered'],
-          pathCount: 6, color: '#818CF8', icon: 'notifications',
+          pathCount: 6, color: '#818CF8', icon: 'send_to_mobile',
     },
     Email: {
           id: 'Email', group: 'OUTBOUND', hasSubTypes: true, directLaunch: false,
           subTypes: ['One Time', 'Periodic', 'Event Triggered', 'Business Event Triggered'],
-          pathCount: 4, color: '#34D399', icon: 'mail',
+          pathCount: 4, color: '#34D399', icon: 'email',
     },
     SMS: {
           id: 'SMS', group: 'OUTBOUND', hasSubTypes: true, directLaunch: false,
@@ -58,25 +58,25 @@ export const CHANNELS: Record<Channel, ChannelConfig> = {
     MMS: {
           id: 'MMS', group: 'OUTBOUND', hasSubTypes: true, directLaunch: false,
           subTypes: ['One Time', 'Periodic', 'Event Triggered', 'Business Event Triggered'],
-          pathCount: 4, color: '#FB923C', icon: 'mms',
+          pathCount: 4, color: '#FB923C', icon: 'perm_media',
     },
     RCS: {
           id: 'RCS', group: 'OUTBOUND', hasSubTypes: true, directLaunch: false,
           subTypes: ['One Time', 'Periodic', 'Event Triggered', 'Business Event Triggered'],
-          pathCount: 4, color: '#38BDF8', icon: 'chat',
+          pathCount: 4, color: '#38BDF8', icon: 'forum',
     },
     // ── INBOUND ───────────────────────────────────────────────────────────────
     'In-App': {
           id: 'In-App', group: 'INBOUND', hasSubTypes: false, directLaunch: true,
-          subTypes: [], pathCount: 1, color: '#C084FC', icon: 'phone_iphone',
+          subTypes: [], pathCount: 1, color: '#C084FC', icon: 'smartphone',
     },
     'On-site': {
           id: 'On-site', group: 'INBOUND', hasSubTypes: false, directLaunch: true,
-          subTypes: [], pathCount: 1, color: '#A78BFA', icon: 'language',
+          subTypes: [], pathCount: 1, color: '#A78BFA', icon: 'web_asset',
     },
     Cards: {
           id: 'Cards', group: 'INBOUND', hasSubTypes: false, directLaunch: true,
-          subTypes: [], pathCount: 1, color: '#818CF8', icon: 'style',
+          subTypes: [], pathCount: 1, color: '#818CF8', icon: 'view_carousel',
     },
     // ── MESSAGING APPS ────────────────────────────────────────────────────────
     WhatsApp: {
@@ -87,22 +87,22 @@ export const CHANNELS: Record<Channel, ChannelConfig> = {
     // ── PERSONALIZATION ────────────────────────────────────────────────────────
     Web: {
           id: 'Web', group: 'PERSONALIZATION', hasSubTypes: false, directLaunch: true,
-          subTypes: [], pathCount: 1, color: '#F9A8D4', icon: 'desktop_windows',
+          subTypes: [], pathCount: 1, color: '#F9A8D4', icon: 'web',
     },
     // ── AUDIENCE ──────────────────────────────────────────────────────────────
     Facebook: {
           id: 'Facebook', group: 'AUDIENCE', hasSubTypes: false, directLaunch: true,
-          subTypes: [], pathCount: 1, color: '#60A5FA', icon: 'group',
+          subTypes: [], pathCount: 1, color: '#60A5FA', icon: 'groups',
     },
     'Google Ads': {
           id: 'Google Ads', group: 'AUDIENCE', hasSubTypes: false, directLaunch: true,
-          subTypes: [], pathCount: 1, color: '#FCA5A5', icon: 'campaign',
+          subTypes: [], pathCount: 1, color: '#FCA5A5', icon: 'ads_click',
     },
     // ── CONNECTOR ─────────────────────────────────────────────────────────────
     Custom: {
           id: 'Custom', group: 'CONNECTOR', hasSubTypes: true, directLaunch: false,
           subTypes: ['One Time', 'Periodic', 'Event Triggered'],
-          pathCount: 3, color: '#94A3B8', icon: 'settings_ethernet',
+          pathCount: 3, color: '#94A3B8', icon: 'extension',
     },
 };
 
@@ -143,19 +143,19 @@ export const TOTAL_VALID_PATHS: number = Object.values(CHANNELS).reduce(
 
 // ─── Channel legend (ordered for the calendar legend bar) ────────────────────
 export const CHANNEL_LEGEND: { channel: Channel; color: string; icon: string }[] = [
-  { channel: 'Push',       color: '#818CF8', icon: 'notifications'    },
-  { channel: 'Email',      color: '#34D399', icon: 'mail'             },
+  { channel: 'Push',       color: '#818CF8', icon: 'send_to_mobile'  },
+  { channel: 'Email',      color: '#34D399', icon: 'email'            },
   { channel: 'SMS',        color: '#FCD34D', icon: 'sms'              },
-  { channel: 'MMS',        color: '#FB923C', icon: 'mms'              },
-  { channel: 'RCS',        color: '#38BDF8', icon: 'chat'             },
-  { channel: 'In-App',     color: '#C084FC', icon: 'phone_iphone'     },
-  { channel: 'On-site',    color: '#A78BFA', icon: 'language'         },
-  { channel: 'Cards',      color: '#818CF8', icon: 'style'            },
+  { channel: 'MMS',        color: '#FB923C', icon: 'perm_media'       },
+  { channel: 'RCS',        color: '#38BDF8', icon: 'forum'            },
+  { channel: 'In-App',     color: '#C084FC', icon: 'smartphone'       },
+  { channel: 'On-site',    color: '#A78BFA', icon: 'web_asset'        },
+  { channel: 'Cards',      color: '#818CF8', icon: 'view_carousel'    },
   { channel: 'WhatsApp',   color: '#6EE7B7', icon: 'chat_bubble'      },
-  { channel: 'Web',        color: '#F9A8D4', icon: 'desktop_windows'  },
-  { channel: 'Facebook',   color: '#60A5FA', icon: 'group'            },
-  { channel: 'Google Ads', color: '#FCA5A5', icon: 'campaign'         },
-  { channel: 'Custom',     color: '#94A3B8', icon: 'settings_ethernet'},
+  { channel: 'Web',        color: '#F9A8D4', icon: 'web'              },
+  { channel: 'Facebook',   color: '#60A5FA', icon: 'groups'           },
+  { channel: 'Google Ads', color: '#FCA5A5', icon: 'ads_click'        },
+  { channel: 'Custom',     color: '#94A3B8', icon: 'extension'        },
   ];
 
 // ─── API channel identifier → Channel label map ──────────────────────────────
