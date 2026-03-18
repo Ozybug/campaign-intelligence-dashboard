@@ -41,21 +41,19 @@ export default function Home() {
             {/* 🔀 Flows — hidden for now, kept for future use
             <a href="/flows" className="px-3 py-1 bg-[#333333] text-[#E0E0E0] border border-[#444444] rounded-full text-xs font-medium hover:bg-[#444444] transition-colors">🔀 Flows</a>
             */}
-            {/* View On-site Campaigns — hidden for now, kept for future use
-            <a
-              href="/onsite"
-              className="flex items-center gap-1.5 px-3 py-1 bg-[#1e1530] text-violet-400 border border-violet-800 rounded-full text-xs font-medium hover:bg-violet-900 transition-colors"
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '0.9rem', lineHeight: 1, verticalAlign: 'middle' }}>web_asset</span>
-              View On-site Campaigns
-            </a>
-            */}
             <a
               href="/schematic"
               className="flex items-center gap-1.5 px-3 py-1 bg-[#1a1a2e] text-indigo-300 border border-indigo-700 rounded-full text-xs font-medium hover:bg-indigo-900/40 transition-colors"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '0.9rem', lineHeight: 1, verticalAlign: 'middle' }}>schema</span>
               Schematic
+            </a>
+            <a
+              href="/onsite"
+              className="flex items-center gap-1.5 px-3 py-1 bg-[#1e150a] text-amber-400 border border-amber-800 rounded-full text-xs font-medium hover:bg-amber-900/40 transition-colors"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '0.9rem', lineHeight: 1, verticalAlign: 'middle' }}>web_asset</span>
+              On-Site
             </a>
           </div>
         </div>
