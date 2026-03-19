@@ -76,54 +76,65 @@ export default function Home() {
 
   // ── Backup ────────────────────────────────────────────────────────────────
 
-  function downloadCSV() {
-    const schematic: any[] = JSON.parse(localStorage.getItem('schematic_campaigns_v1') || '[]');
-    const onsite: any[]    = JSON.parse(localStorage.getItem('on_site_campaigns_v1')   || '[]');
+  async function downloadCSV() {
+    setRestoreMsg({ ok: true, text: 'Fetching campaigns…' });
+    try {
+      const [schRes, onsRes] = await Promise.all([
+        fetch('/api/schematic'),
+        fetch('/api/onsite'),
+      ]);
+      const schData = await schRes.json();
+      const onsData = await onsRes.json();
+      const schematic: any[] = schData.campaigns ?? [];
+      const onsite: any[]    = onsData.campaigns ?? [];
 
-    if (schematic.length === 0 && onsite.length === 0) {
-      setRestoreMsg({ ok: false, text: 'Nothing to backup — no Schematic or On-Site campaigns found.' });
-      return;
+      if (schematic.length === 0 && onsite.length === 0) {
+        setRestoreMsg({ ok: false, text: 'Nothing to backup — no campaigns found in Google Sheets.' });
+        return;
+      }
+
+      const rows = [
+        ...schematic.map((c: any) => [
+          'schematic', c.id, c.brand, c.title,
+          c.channel, c.format, c.mode, c.stage,
+          c.startDate, c.endDate || '',
+          JSON.stringify(c.blackoutDates || []),
+          c.messageTitle || '', c.subtitle || '', c.messageBody || '',
+          c.recurring?.interval || '', c.recurring?.customValue ?? '', c.recurring?.customUnit || '',
+          '', '', '', '', '', '',
+        ]),
+        ...onsite.map((c: any) => [
+          'onsite', c.id, c.brand, c.title,
+          '', '', '', '',
+          c.startDate, c.endDate || '',
+          '', '', '', '', '', '', '',
+          c.osmTarget, JSON.stringify(c.osmTargetNames || []),
+          c.redirectTarget, JSON.stringify(c.redirectTargetNames || []),
+          c.priority, c.status,
+        ]),
+      ];
+
+      const csv = [
+        CSV_HEADERS.join(','),
+        ...rows.map(r => r.map(escapeCSV).join(',')),
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      a.download = `campaign-backup-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setRestoreMsg({ ok: true, text: `Backed up ${schematic.length} Schematic + ${onsite.length} On-Site campaigns.` });
+    } catch (err: any) {
+      setRestoreMsg({ ok: false, text: `Backup failed: ${err.message}` });
     }
-
-    const rows = [
-      ...schematic.map((c: any) => [
-        'schematic', c.id, c.brand, c.title,
-        c.channel, c.format, c.mode, c.stage,
-        c.startDate, c.endDate || '',
-        JSON.stringify(c.blackoutDates || []),
-        c.messageTitle || '', c.subtitle || '', c.messageBody || '',
-        c.recurring?.interval || '', c.recurring?.customValue ?? '', c.recurring?.customUnit || '',
-        '', '', '', '', '', '',
-      ]),
-      ...onsite.map((c: any) => [
-        'onsite', c.id, c.brand, c.title,
-        '', '', '', '',
-        c.startDate, c.endDate || '',
-        '', '', '', '', '', '', '',
-        c.osmTarget, JSON.stringify(c.osmTargetNames || []),
-        c.redirectTarget, JSON.stringify(c.redirectTargetNames || []),
-        c.priority, c.status,
-      ]),
-    ];
-
-    const csv = [
-      CSV_HEADERS.join(','),
-      ...rows.map(r => r.map(escapeCSV).join(',')),
-    ].join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `campaign-backup-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setRestoreMsg({ ok: true, text: `Backed up ${schematic.length} Schematic + ${onsite.length} On-Site campaigns.` });
   }
 
   // ── Restore ───────────────────────────────────────────────────────────────
 
-  function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = ''; // reset so same file can be re-uploaded
@@ -186,10 +197,21 @@ export default function Home() {
           return;
         }
 
-        localStorage.setItem('schematic_campaigns_v1', JSON.stringify(schematic));
-        localStorage.setItem('on_site_campaigns_v1',   JSON.stringify(onsite));
-        setRestoreMsg({ ok: true, text: `Restored ${schematic.length} Schematic + ${onsite.length} On-Site campaigns. Reloading…` });
-        setTimeout(() => window.location.reload(), 1200);
+        // POST each campaign to the API (Google Sheets) — use .then() to avoid async in FileReader callback
+        setRestoreMsg({ ok: true, text: `Importing ${schematic.length} Schematic + ${onsite.length} On-Site campaigns…` });
+        const postCampaign = (url: string, c: any) =>
+          fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) });
+
+        Promise.all([
+          ...schematic.map((c: any) => postCampaign('/api/schematic', c)),
+          ...onsite.map((c: any)    => postCampaign('/api/onsite',    c)),
+        ]).then(() => {
+          setRestoreMsg({ ok: true, text: `Restored ${schematic.length} Schematic + ${onsite.length} On-Site campaigns. Reloading…` });
+          setTimeout(() => window.location.reload(), 1200);
+        }).catch(() => {
+          setRestoreMsg({ ok: false, text: 'Some campaigns failed to import. Check the console and try again.' });
+        });
+
       } catch (err) {
         setRestoreMsg({ ok: false, text: 'Failed to parse CSV — please check the file format.' });
         console.error(err);

@@ -43,6 +43,7 @@ const CHANNEL_ICONS:  Record<SchChannel, string> = { Email: 'mail',    Push: 'se
 const BRAND_COLORS:   Record<Brand, string>      = { Zostel: '#818CF8', 'Zo Trips': '#34D399' };
 const MODE_COLORS:    Record<SchMode, string>    = { Shell: '#94A3B8', Curated: '#34D399' };
 const MODE_ICONS:     Record<SchMode, string>    = { Shell: 'draft',   Curated: 'task_alt' };
+// LS_KEY kept for one-time migration only — primary storage is now Google Sheets
 const LS_KEY = 'schematic_campaigns_v1';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -204,7 +205,7 @@ const EMPTY: FormState = {
 };
 
 // ── Form body ──────────────────────────────────────────────────────────────────
-function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, currentStage, isEdit }: {
+function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, currentStage, isEdit, saving }: {
   f: FormState;
   set: (k: keyof FormState, v: any) => void;
   onSubmit: (e: React.FormEvent) => void;
@@ -213,6 +214,7 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
   onMarkSchematic?: () => void;
   currentStage?: Stage;
   isEdit: boolean;
+  saving?: boolean;
 }) {
   // Computed occurrences for the Recurring occurrence list
   const occurrences = f.format === 'Recurring' && f.startDate
@@ -541,14 +543,14 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         )}
         <button type="submit"
           disabled={
-            !f.brand || !f.mode || !f.title.trim() || !f.startDate
+            saving || !f.brand || !f.mode || !f.title.trim() || !f.startDate
             || (f.mode === 'Curated' && !f.messageTitle.trim())
           }
           className="ml-auto flex items-center gap-1.5 px-4 py-1.5 bg-indigo-700 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors">
           <span className="material-symbols-outlined" style={{ fontSize: '0.9rem', lineHeight: 1 }}>
-            {isEdit ? 'save' : 'add'}
+            {saving ? 'hourglass_empty' : isEdit ? 'save' : 'add'}
           </span>
-          {isEdit ? 'Save Changes' : 'Add to Schematic'}
+          {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add to Schematic'}
         </button>
       </div>
     </form>
@@ -562,31 +564,52 @@ export default function SchematicPage() {
   const [form, setForm]             = useState<FormState>({ ...EMPTY });
   const [editId, setEditId]         = useState<string | null>(null);
   const [modalOpen, setModalOpen]   = useState(false);
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
+  const [apiError, setApiError]     = useState<string | null>(null);
 
-  // Load + migrate from localStorage
-  useEffect(() => {
+  // ── Fetch campaigns from Google Sheets API ──────────────────────────────────
+  const fetchCampaigns = async () => {
+    setLoading(true);
     try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as any[];
-        setCampaigns(parsed.map(c => ({
-          stage:         'schematic' as Stage,
-          brand:         'Zostel'    as Brand,
-          mode:          'Curated'   as SchMode,
-          blackoutDates: [] as string[],
-          ...c,
-        })));
-      }
-    } catch {}
-  }, []);
+      const res  = await fetch('/api/schematic');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setCampaigns(data.campaigns ?? []);
+      setApiError(null);
+    } catch (err: any) {
+      setApiError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchCampaigns(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     fetch('/api/campaigns').then(r => r.json()).then(d => setCollisions(d.collisions || []));
   }, []);
 
-  const persist = (updated: SchematicCampaign[]) => {
-    setCampaigns(updated);
-    try { localStorage.setItem(LS_KEY, JSON.stringify(updated)); } catch {}
+  // ── Generic API call helper ─────────────────────────────────────────────────
+  const apiCall = async (method: string, body: object): Promise<boolean> => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/schematic', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? `Request failed (${res.status})`);
+      }
+      return true;
+    } catch (err: any) {
+      setApiError(err.message);
+      return false;
+    } finally {
+      setSaving(false);
+    }
   };
 
   const set = (k: keyof FormState, v: any) => setForm(prev => ({ ...prev, [k]: v }));
@@ -616,7 +639,7 @@ export default function SchematicPage() {
     setModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.brand || !form.mode || !form.title.trim() || !form.startDate) return;
     if (form.mode === 'Curated' && !form.messageTitle.trim()) return;
@@ -644,30 +667,34 @@ export default function SchematicPage() {
       }),
     };
 
-    persist(editId
-      ? campaigns.map(c => c.id === editId ? campaign : c)
-      : [...campaigns, campaign]
-    );
-    resetForm();
-    setModalOpen(false);
+    const ok = await apiCall(editId ? 'PUT' : 'POST', campaign);
+    if (ok) {
+      await fetchCampaigns();
+      resetForm();
+      setModalOpen(false);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!editId) return;
-    persist(campaigns.filter(c => c.id !== editId));
-    closeModal();
+    const ok = await apiCall('DELETE', { id: editId });
+    if (ok) { await fetchCampaigns(); closeModal(); }
   };
 
-  const handleMarkLive = () => {
+  const handleMarkLive = async () => {
     if (!editId) return;
-    persist(campaigns.map(c => c.id === editId ? { ...c, stage: 'live' as Stage } : c));
-    closeModal();
+    const c = campaigns.find(x => x.id === editId);
+    if (!c) return;
+    const ok = await apiCall('PUT', { ...c, stage: 'live' as Stage });
+    if (ok) { await fetchCampaigns(); closeModal(); }
   };
 
-  const handleMarkSchematic = () => {
+  const handleMarkSchematic = async () => {
     if (!editId) return;
-    persist(campaigns.map(c => c.id === editId ? { ...c, stage: 'schematic' as Stage } : c));
-    closeModal();
+    const c = campaigns.find(x => x.id === editId);
+    if (!c) return;
+    const ok = await apiCall('PUT', { ...c, stage: 'schematic' as Stage });
+    if (ok) { await fetchCampaigns(); closeModal(); }
   };
 
   const extraEvents = campaigns.flatMap(expandToEvents);
@@ -720,10 +747,21 @@ export default function SchematicPage() {
       </div>
 
       <div className="max-w-7xl mx-auto p-6 space-y-4">
+        {/* API error banner */}
+        {apiError && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-red-950/40 border border-red-800 rounded-xl text-xs text-red-300">
+            <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '0.9rem', lineHeight: 1 }}>error</span>
+            <span className="flex-1">{apiError}</span>
+            <button onClick={() => setApiError(null)} className="text-red-600 hover:text-red-400 transition-colors">
+              <span className="material-symbols-outlined" style={{ fontSize: '0.75rem', lineHeight: 1 }}>close</span>
+            </button>
+          </div>
+        )}
+
         {/* Form card */}
         <div className="bg-[#1e1e1e] rounded-xl border border-[#444444] p-4">
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-3">Plan a Campaign</p>
-          <FormBody f={form} set={set} onSubmit={handleSubmit} isEdit={false} />
+          <FormBody f={form} set={set} onSubmit={handleSubmit} isEdit={false} saving={saving} />
         </div>
 
         {/* Calendar — receives all blackout dates for day-cell highlighting */}
@@ -737,7 +775,13 @@ export default function SchematicPage() {
         />
 
         {/* Campaign feed */}
-        {campaigns.length > 0 && (
+        {loading && (
+          <div className="flex items-center justify-center gap-2 py-8 text-[#555] text-sm">
+            <span className="material-symbols-outlined animate-spin" style={{ fontSize: '1.1rem', lineHeight: 1 }}>progress_activity</span>
+            Loading campaigns from Google Sheets…
+          </div>
+        )}
+        {!loading && campaigns.length > 0 && (
           <div className="bg-[#1e1e1e] rounded-xl border border-[#444444] p-4">
             <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-3">Campaign Feed</p>
             <div className="space-y-0.5">
@@ -847,6 +891,7 @@ export default function SchematicPage() {
               onMarkSchematic={handleMarkSchematic}
               currentStage={editCampaign?.stage}
               isEdit={true}
+              saving={saving}
             />
           </div>
         </div>
