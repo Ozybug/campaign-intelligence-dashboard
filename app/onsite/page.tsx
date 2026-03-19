@@ -196,12 +196,13 @@ function ChipInput({ label, names, input, onInput, onAdd, onRemove, required }: 
 }
 
 // ── Form body ──────────────────────────────────────────────────────────────────
-function FormBody({ f, set, onSubmit, onDelete, isEdit }: {
+function FormBody({ f, set, onSubmit, onDelete, isEdit, saving }: {
   f: FormState;
   set: (k: keyof FormState, v: any) => void;
   onSubmit: (e: React.FormEvent) => void;
   onDelete?: () => void;
   isEdit: boolean;
+  saving?: boolean;
 }) {
   const addChip    = (v: string) => { set('osmTargetNames', [...f.osmTargetNames, v]); set('osmInput', ''); };
   const removeChip = (v: string) => set('osmTargetNames', f.osmTargetNames.filter(n => n !== v));
@@ -388,15 +389,15 @@ function FormBody({ f, set, onSubmit, onDelete, isEdit }: {
           </button>
         )}
         <button type="submit" disabled={
-            !f.brand || !f.title.trim() || !f.startDate || !f.priority || !f.status
+            saving || !f.brand || !f.title.trim() || !f.startDate || !f.priority || !f.status
             || (f.osmTarget !== 'Homepage' && f.osmTargetNames.length === 0 && !f.osmInput.trim())
             || (f.redirectTarget !== 'Homepage' && f.redirectTargetNames.length === 0 && !f.redirectInput.trim())
           }
           className="ml-auto flex items-center gap-1.5 px-4 py-1.5 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-colors">
           <span className="material-symbols-outlined" style={{ fontSize: '0.9rem', lineHeight: 1 }}>
-            {isEdit ? 'save' : 'add'}
+            {saving ? 'hourglass_empty' : isEdit ? 'save' : 'add'}
           </span>
-          {isEdit ? 'Save Changes' : 'Add Campaign'}
+          {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Campaign'}
         </button>
       </div>
     </form>
@@ -412,18 +413,50 @@ export default function OnsitePage() {
   const [calOpen, setCalOpen]     = useState(false);
   const [search, setSearch]       = useState('');
   const [sortMode, setSortMode]   = useState<SortMode>('status');
+  const [loading, setLoading]     = useState(true);
+  const [saving, setSaving]       = useState(false);
+  const [apiError, setApiError]   = useState<string | null>(null);
 
-  useEffect(() => {
+  // ── Fetch campaigns from Google Sheets API ──────────────────────────────────
+  const fetchCampaigns = async () => {
+    setLoading(true);
     try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) setCampaigns(JSON.parse(raw) as OnSiteCampaign[]);
-    } catch {}
-  }, []);
-
-  const persist    = (updated: OnSiteCampaign[]) => {
-    setCampaigns(updated);
-    try { localStorage.setItem(LS_KEY, JSON.stringify(updated)); } catch {}
+      const res  = await fetch('/api/onsite');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+      setCampaigns(data.campaigns ?? []);
+      setApiError(null);
+    } catch (err: any) {
+      setApiError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => { fetchCampaigns(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Generic API call helper ─────────────────────────────────────────────────
+  const apiCall = async (method: string, body: object): Promise<boolean> => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/onsite', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error(d.error ?? `Request failed (${res.status})`);
+      }
+      return true;
+    } catch (err: any) {
+      setApiError(err.message);
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const set        = (k: keyof FormState, v: any) => setForm(prev => ({ ...prev, [k]: v }));
   const resetForm  = () => { setForm({ ...EMPTY }); setEditId(null); };
   const closeModal = () => { setModalOpen(false); resetForm(); };
@@ -442,7 +475,7 @@ export default function OnsitePage() {
     setModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.brand || !form.title.trim() || !form.startDate || !form.priority || !form.status) return;
     const needsOsmName      = form.osmTarget      !== 'Homepage';
@@ -473,18 +506,19 @@ export default function OnsitePage() {
       startDate:           form.startDate,
       endDate:             form.endDate || null,
     };
-    persist(editId
-      ? campaigns.map(c => c.id === editId ? campaign : c)
-      : [...campaigns, campaign]
-    );
-    resetForm();
-    setModalOpen(false);
+
+    const ok = await apiCall(editId ? 'PUT' : 'POST', campaign);
+    if (ok) {
+      await fetchCampaigns();
+      resetForm();
+      setModalOpen(false);
+    }
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!editId) return;
-    persist(campaigns.filter(c => c.id !== editId));
-    closeModal();
+    const ok = await apiCall('DELETE', { id: editId });
+    if (ok) { await fetchCampaigns(); closeModal(); }
   };
 
   // ── Feed ─────────────────────────────────────────────────────────────────────
@@ -530,10 +564,21 @@ export default function OnsitePage() {
 
       <div className="max-w-7xl mx-auto p-6 space-y-4">
 
+        {/* API error banner */}
+        {apiError && (
+          <div className="flex items-center gap-2 px-4 py-2.5 bg-red-950/40 border border-red-800 rounded-xl text-xs text-red-300">
+            <span className="material-symbols-outlined flex-shrink-0" style={{ fontSize: '0.9rem', lineHeight: 1 }}>error</span>
+            <span className="flex-1">{apiError}</span>
+            <button onClick={() => setApiError(null)} className="text-red-600 hover:text-red-400 transition-colors">
+              <span className="material-symbols-outlined" style={{ fontSize: '0.75rem', lineHeight: 1 }}>close</span>
+            </button>
+          </div>
+        )}
+
         {/* Plan form */}
         <div className="bg-[#1e1e1e] rounded-xl border border-[#444444] p-4">
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-3">Plan an On-Site Campaign</p>
-          <FormBody f={form} set={set} onSubmit={handleSubmit} isEdit={false} />
+          <FormBody f={form} set={set} onSubmit={handleSubmit} isEdit={false} saving={saving} />
         </div>
 
         {/* Collapsible calendar */}
@@ -597,7 +642,12 @@ export default function OnsitePage() {
             </select>
           </div>
 
-          {feedCampaigns.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-8 text-[#555] text-sm">
+              <span className="material-symbols-outlined animate-spin" style={{ fontSize: '1.1rem', lineHeight: 1 }}>progress_activity</span>
+              Loading campaigns from Google Sheets…
+            </div>
+          ) : feedCampaigns.length === 0 ? (
             <p className="text-[#555] text-sm text-center py-8 italic">
               {campaigns.length === 0
                 ? 'No on-site campaigns yet — plan one above.'
@@ -674,7 +724,7 @@ export default function OnsitePage() {
                 <span className="material-symbols-outlined" style={{ fontSize: '1.1rem', lineHeight: 1 }}>close</span>
               </button>
             </div>
-            <FormBody f={form} set={set} onSubmit={handleSubmit} onDelete={handleDelete} isEdit={true} />
+            <FormBody f={form} set={set} onSubmit={handleSubmit} onDelete={handleDelete} isEdit={true} saving={saving} />
           </div>
         </div>
       )}
