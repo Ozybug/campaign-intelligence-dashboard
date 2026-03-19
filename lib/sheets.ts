@@ -150,7 +150,7 @@ export async function deleteRowById(sheetName: string, id: string): Promise<bool
 
 // ── Schematic typed helpers ───────────────────────────────────────────────────
 
-export type SchChannel  = 'Email' | 'Push';
+export type SchChannel  = 'Email' | 'Push' | 'WhatsApp';
 export type SchFormat   = 'One Time' | 'Event Triggered' | 'Recurring';
 export type RecInterval = 'daily' | 'weekly' | 'monthly' | 'custom';
 export type CustomUnit  = 'day' | 'week' | 'month' | 'year';

@@ -640,11 +640,11 @@ export default function CampaignCalendar({ onSelect, collisions, hideFilters = f
           {schTooltip.channel !== 'Email' && schTooltip.subtitle && (
             <p className="text-[#888] leading-snug mb-0.5">{schTooltip.subtitle}</p>
           )}
-          {/* Push: body | Email: agenda */}
+          {/* WhatsApp / Push: body | Email: agenda */}
           {schTooltip.messageBody && (
             <>
               <p className="text-[9px] font-semibold text-[#555] tracking-wider uppercase mb-0.5 mt-1">
-                {schTooltip.channel === 'Email' ? 'Agenda' : 'Body'}
+                {schTooltip.channel === 'Email' ? 'Agenda' : 'Message Body'}
               </p>
               <p className="text-[#B0B0B0] leading-relaxed">{schTooltip.messageBody}</p>
             </>
