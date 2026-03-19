@@ -158,9 +158,11 @@ function expandToEvents(c: SchematicCampaign): any[] {
   };
 
   if (c.format !== 'Recurring') {
-    const eff = effectiveEnd >= c.startDate ? effectiveEnd : c.startDate;
+    const eff    = effectiveEnd >= c.startDate ? effectiveEnd : c.startDate;
+    // FullCalendar allDay end is exclusive — add 1 day so the chip covers the end date itself
+    const excEnd = toDateStr(addDays(new Date(eff + 'T00:00:00'), 1));
     if (blackoutSet.size === 0) {
-      return [{ ...base, id: c.id, title: c.title, start: c.startDate, end: eff }];
+      return [{ ...base, id: c.id, title: c.title, start: c.startDate, end: excEnd }];
     }
     return splitRangeAroundBlackouts(c.id, c.title, c.startDate, eff, blackoutSet, base);
   }
