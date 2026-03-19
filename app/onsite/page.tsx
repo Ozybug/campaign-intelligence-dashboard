@@ -101,10 +101,10 @@ function expandOnsiteToEvent(c: OnSiteCampaign): any {
 
   const isLive      = c.status === 'Live';
   const isScheduled = c.status === 'Scheduled';
-  // Live      → solid fill, pill shape, full opacity
-  // Scheduled → solid border, pill shape, low opacity fill
+  // Live      → 30% fill, pill shape, full opacity  (more visible than Scheduled)
+  // Scheduled → 10% fill, pill shape, low opacity
   // Ideation  → dashed border, rectangular, standard opacity
-  const bgOpacity = isLive ? 1.0 : isScheduled ? 0.10 : 0.18;
+  const bgOpacity = isLive ? 0.30 : isScheduled ? 0.10 : 0.18;
 
   return {
     id:    c.id,
@@ -113,7 +113,7 @@ function expandOnsiteToEvent(c: OnSiteCampaign): any {
     end:   exclusiveEnd,
     backgroundColor: hexToRgba(color, bgOpacity),
     borderColor:     color,
-    textColor:       isLive ? '#FFFFFF' : color,
+    textColor:       color,
     classNames: [],   // CampaignCalendar eventClassNames handles class per osmStatus
     extendedProps: {
       isSchematic:    true,           // reuses schematic event rendering in CampaignCalendar

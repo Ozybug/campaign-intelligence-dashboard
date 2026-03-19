@@ -78,7 +78,7 @@ export default function Home() {
             title:           c.title,
             start:           c.startDate,
             end:             c.endDate || horizon,
-            backgroundColor: 'rgba(37,211,102,0.15)',
+            backgroundColor: 'rgba(37,211,102,0.30)',
             borderColor:     WA_COLOR,
             textColor:       WA_COLOR,
             classNames:      ['schematic-event'],
