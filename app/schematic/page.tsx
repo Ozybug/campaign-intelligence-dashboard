@@ -586,6 +586,14 @@ export default function SchematicPage() {
   const [loading, setLoading]       = useState(true);
   const [saving, setSaving]         = useState(false);
   const [apiError, setApiError]     = useState<string | null>(null);
+  const [channelFilter, setChannelFilter] = useState<Set<SchChannel>>(new Set());
+
+  const toggleChannelFilter = (ch: SchChannel) =>
+    setChannelFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(ch)) next.delete(ch); else next.add(ch);
+      return next;
+    });
 
   // ── Fetch campaigns from Google Sheets API ──────────────────────────────────
   const fetchCampaigns = async () => {
@@ -716,7 +724,11 @@ export default function SchematicPage() {
     if (ok) { await fetchCampaigns(); closeModal(); }
   };
 
-  const extraEvents = campaigns.flatMap(expandToEvents);
+  const allEvents   = campaigns.flatMap(expandToEvents);
+  // Apply channel filter to calendar events — empty set = show all
+  const extraEvents = channelFilter.size === 0
+    ? allEvents
+    : allEvents.filter(e => channelFilter.has(e.extendedProps?.channel as SchChannel));
 
   // Combine all saved blackout dates + current form's blackout dates for calendar day-cell highlighting
   const allBlackoutDates = Array.from(new Set([
@@ -728,10 +740,13 @@ export default function SchematicPage() {
   const liveCount      = campaigns.filter(c => c.stage === 'live').length;
   const editCampaign   = campaigns.find(c => c.id === editId);
 
-  const feedCampaigns = [...campaigns].sort((a, b) => {
-    if (a.stage !== b.stage) return a.stage === 'schematic' ? -1 : 1;
-    return a.startDate.localeCompare(b.startDate);
-  });
+  // Apply channel filter to feed too
+  const feedCampaigns = [...campaigns]
+    .filter(c => channelFilter.size === 0 || channelFilter.has(c.channel))
+    .sort((a, b) => {
+      if (a.stage !== b.stage) return a.stage === 'schematic' ? -1 : 1;
+      return a.startDate.localeCompare(b.startDate);
+    });
 
   return (
     <main className="min-h-screen bg-[#121212] text-[#E0E0E0]">
@@ -781,6 +796,38 @@ export default function SchematicPage() {
         <div className="bg-[#1e1e1e] rounded-xl border border-[#444444] p-4">
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-3">Plan a Campaign</p>
           <FormBody f={form} set={set} onSubmit={handleSubmit} isEdit={false} saving={saving} />
+        </div>
+
+        {/* Channel filter strip */}
+        <div className="bg-[#1e1e1e] rounded-xl border border-[#444444] px-4 py-2.5 flex items-center gap-3">
+          <p className="text-[10px] font-semibold text-[#555] tracking-wider uppercase flex-shrink-0">Channel</p>
+          <div className="flex gap-1.5 flex-wrap">
+            {(['Email', 'Push', 'WhatsApp'] as SchChannel[]).map(ch => {
+              const isActive = channelFilter.has(ch);
+              const color    = CHANNEL_COLORS[ch];
+              const icon     = CHANNEL_ICONS[ch];
+              return (
+                <button key={ch} type="button" onClick={() => toggleChannelFilter(ch)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
+                  style={isActive
+                    ? { backgroundColor: hexToRgba(color, 0.18), borderColor: color, color }
+                    : { backgroundColor: '#161616', borderColor: '#333', color: '#555' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '0.8rem', lineHeight: 1 }}>{icon}</span>
+                  {ch}
+                </button>
+              );
+            })}
+          </div>
+          {channelFilter.size > 0 && (
+            <button type="button" onClick={() => setChannelFilter(new Set())}
+              className="ml-auto flex items-center gap-0.5 text-[10px] text-[#555] hover:text-[#999] transition-colors">
+              <span className="material-symbols-outlined" style={{ fontSize: '0.75rem', lineHeight: 1 }}>close</span>
+              Show all
+            </button>
+          )}
+          {channelFilter.size === 0 && (
+            <span className="ml-auto text-[10px] text-[#444]">All channels</span>
+          )}
         </div>
 
         {/* Calendar — receives all blackout dates for day-cell highlighting */}
