@@ -89,6 +89,12 @@ const hexToRgba = (hex: string, a: number) => {
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${a})`;
 };
+/** Alpha-composite hex over #1e1e1e — opaque color that looks identical to rgba(hex,alpha) on the dark calendar bg */
+const blendHex = (hex: string, alpha: number, bgHex = '#1e1e1e') => {
+  const px = (h: string, i: number) => parseInt(h.slice(i, i + 2), 16);
+  const mix = (f: number, b: number) => Math.round(f * alpha + b * (1 - alpha));
+  return `rgb(${mix(px(hex,1),px(bgHex,1))},${mix(px(hex,3),px(bgHex,3))},${mix(px(hex,5),px(bgHex,5))})`;
+};
 const formatDate = (str: string) => {
   const [y, m, d] = str.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -111,7 +117,7 @@ function expandOnsiteToEvent(c: OnSiteCampaign): any {
     title: c.title,
     start: c.startDate,
     end:   exclusiveEnd,
-    backgroundColor: hexToRgba(color, bgOpacity),
+    backgroundColor: blendHex(color, bgOpacity),
     borderColor:     color,
     textColor:       color,
     classNames: [],   // CampaignCalendar eventClassNames handles class per osmStatus
