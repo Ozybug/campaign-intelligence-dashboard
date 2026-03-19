@@ -91,6 +91,19 @@ html, body {
       cursor: pointer !important;
       overflow: hidden !important;
       transition: border-radius 0.12s ease !important;
+      position: relative !important;
+}
+
+/* Solid dark backdrop behind every chip so grid lines don't bleed through
+   the transparent background-color. Sits behind the chip's own bg layer. */
+.calendar-container .fc-event::before {
+      content: '' !important;
+      position: absolute !important;
+      inset: 0 !important;
+      background: #1e1e1e !important;
+      z-index: -1 !important;
+      border-radius: inherit !important;
+      pointer-events: none !important;
 }
 
 /* Hide default FC title/time — we render custom content */
