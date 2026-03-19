@@ -13,7 +13,7 @@ type SchFormat   = 'One Time' | 'Event Triggered' | 'Recurring';
 type RecInterval = 'daily' | 'weekly' | 'monthly' | 'custom';
 type CustomUnit  = 'day' | 'week' | 'month' | 'year';
 type Stage       = 'schematic' | 'live';
-type Brand       = 'Zostel' | 'Zo Trips' | 'Zo Selections';
+type Brand       = 'Zostel Hostel' | 'Zostel Plus' | 'Zostel Homes' | 'Zo Trips' | 'Zo Selections' | 'Experiences';
 type SchMode     = 'Shell' | 'Curated';
 
 interface SchematicCampaign {
@@ -40,7 +40,14 @@ interface SchematicCampaign {
 // ── Constants ──────────────────────────────────────────────────────────────────
 const CHANNEL_COLORS: Record<SchChannel, string> = { Email: '#34D399', Push: '#818CF8', WhatsApp: '#25D366' };
 const CHANNEL_ICONS:  Record<SchChannel, string> = { Email: 'mail',    Push: 'send_to_mobile', WhatsApp: 'mobile_chat' };
-const BRAND_COLORS:   Record<Brand, string>      = { Zostel: '#818CF8', 'Zo Trips': '#34D399', 'Zo Selections': '#F59E0B' };
+const BRAND_COLORS:   Record<Brand, string>      = {
+  'Zostel Hostel':  '#818CF8',
+  'Zostel Plus':    '#C084FC',
+  'Zostel Homes':   '#FB923C',
+  'Zo Trips':       '#34D399',
+  'Zo Selections':  '#F59E0B',
+  'Experiences':    '#F472B6',
+};
 const MODE_COLORS:    Record<SchMode, string>    = { Shell: '#94A3B8', Curated: '#34D399' };
 const MODE_ICONS:     Record<SchMode, string>    = { Shell: 'draft',   Curated: 'task_alt' };
 // LS_KEY kept for one-time migration only — primary storage is now Google Sheets
@@ -246,7 +253,7 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
             Brand <span className="text-rose-400">*</span>
           </p>
           <div className="flex gap-1">
-            {(['Zostel', 'Zo Trips', 'Zo Selections'] as Brand[]).map(b => (
+            {(['Zostel Hostel', 'Zostel Plus', 'Zostel Homes', 'Zo Trips', 'Zo Selections', 'Experiences'] as Brand[]).map(b => (
               <button key={b} type="button" onClick={() => set('brand', b)}
                 className="px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
                 style={f.brand === b
@@ -587,11 +594,19 @@ export default function SchematicPage() {
   const [saving, setSaving]         = useState(false);
   const [apiError, setApiError]     = useState<string | null>(null);
   const [channelFilter, setChannelFilter] = useState<Set<SchChannel>>(new Set());
+  const [brandFilter,   setBrandFilter]   = useState<Set<Brand>>(new Set());
 
   const toggleChannelFilter = (ch: SchChannel) =>
     setChannelFilter(prev => {
       const next = new Set(prev);
       if (next.has(ch)) next.delete(ch); else next.add(ch);
+      return next;
+    });
+
+  const toggleBrandFilter = (b: Brand) =>
+    setBrandFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(b)) next.delete(b); else next.add(b);
       return next;
     });
 
@@ -725,10 +740,13 @@ export default function SchematicPage() {
   };
 
   const allEvents   = campaigns.flatMap(expandToEvents);
-  // Apply channel filter to calendar events — empty set = show all
-  const extraEvents = channelFilter.size === 0
-    ? allEvents
-    : allEvents.filter(e => channelFilter.has(e.extendedProps?.channel as SchChannel));
+  // Apply channel + brand filters to calendar events — empty set = show all
+  const extraEvents = allEvents.filter(e => {
+    const ch = e.extendedProps?.channel as SchChannel;
+    const br = e.extendedProps?.brand   as Brand;
+    return (channelFilter.size === 0 || channelFilter.has(ch))
+        && (brandFilter.size   === 0 || brandFilter.has(br));
+  });
 
   // Combine all saved blackout dates + current form's blackout dates for calendar day-cell highlighting
   const allBlackoutDates = Array.from(new Set([
@@ -740,9 +758,12 @@ export default function SchematicPage() {
   const liveCount      = campaigns.filter(c => c.stage === 'live').length;
   const editCampaign   = campaigns.find(c => c.id === editId);
 
-  // Apply channel filter to feed too
+  // Apply channel + brand filters to feed too
   const feedCampaigns = [...campaigns]
-    .filter(c => channelFilter.size === 0 || channelFilter.has(c.channel))
+    .filter(c =>
+      (channelFilter.size === 0 || channelFilter.has(c.channel)) &&
+      (brandFilter.size   === 0 || brandFilter.has(c.brand))
+    )
     .sort((a, b) => {
       if (a.stage !== b.stage) return a.stage === 'schematic' ? -1 : 1;
       return a.startDate.localeCompare(b.startDate);
@@ -799,16 +820,16 @@ export default function SchematicPage() {
         </div>
 
         {/* Channel filter strip */}
-        <div className="bg-[#1e1e1e] rounded-xl border border-[#444444] px-4 py-2.5 flex items-center gap-3">
+        <div className="bg-[#1e1e1e] rounded-xl border border-[#444444] px-4 py-2.5 flex items-center gap-3 overflow-x-auto">
           <p className="text-[10px] font-semibold text-[#555] tracking-wider uppercase flex-shrink-0">Channel</p>
-          <div className="flex gap-1.5 flex-wrap">
+          <div className="flex gap-1.5 flex-nowrap">
             {(['Email', 'Push', 'WhatsApp'] as SchChannel[]).map(ch => {
               const isActive = channelFilter.has(ch);
               const color    = CHANNEL_COLORS[ch];
               const icon     = CHANNEL_ICONS[ch];
               return (
                 <button key={ch} type="button" onClick={() => toggleChannelFilter(ch)}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all flex-shrink-0"
                   style={isActive
                     ? { backgroundColor: hexToRgba(color, 0.18), borderColor: color, color }
                     : { backgroundColor: '#161616', borderColor: '#333', color: '#555' }}>
@@ -818,15 +839,43 @@ export default function SchematicPage() {
               );
             })}
           </div>
-          {channelFilter.size > 0 && (
+          {channelFilter.size > 0 ? (
             <button type="button" onClick={() => setChannelFilter(new Set())}
-              className="ml-auto flex items-center gap-0.5 text-[10px] text-[#555] hover:text-[#999] transition-colors">
+              className="ml-3 flex items-center gap-0.5 text-[10px] text-[#555] hover:text-[#999] transition-colors flex-shrink-0">
               <span className="material-symbols-outlined" style={{ fontSize: '0.75rem', lineHeight: 1 }}>close</span>
-              Show all
+              Clear
             </button>
+          ) : (
+            <span className="ml-3 text-[10px] text-[#444] flex-shrink-0">All</span>
           )}
-          {channelFilter.size === 0 && (
-            <span className="ml-auto text-[10px] text-[#444]">All channels</span>
+        </div>
+
+        {/* Brand filter strip */}
+        <div className="bg-[#1e1e1e] rounded-xl border border-[#444444] px-4 py-2.5 flex items-center gap-3 overflow-x-auto">
+          <p className="text-[10px] font-semibold text-[#555] tracking-wider uppercase flex-shrink-0">Brand</p>
+          <div className="flex gap-1.5 flex-nowrap">
+            {(['Zostel Hostel', 'Zostel Plus', 'Zostel Homes', 'Zo Trips', 'Zo Selections', 'Experiences'] as Brand[]).map(b => {
+              const isActive = brandFilter.has(b);
+              const color    = BRAND_COLORS[b];
+              return (
+                <button key={b} type="button" onClick={() => toggleBrandFilter(b)}
+                  className="px-2.5 py-1 rounded-full text-xs font-medium border transition-all flex-shrink-0"
+                  style={isActive
+                    ? { backgroundColor: hexToRgba(color, 0.18), borderColor: color, color }
+                    : { backgroundColor: '#161616', borderColor: '#333', color: '#555' }}>
+                  {b}
+                </button>
+              );
+            })}
+          </div>
+          {brandFilter.size > 0 ? (
+            <button type="button" onClick={() => setBrandFilter(new Set())}
+              className="ml-3 flex items-center gap-0.5 text-[10px] text-[#555] hover:text-[#999] transition-colors flex-shrink-0">
+              <span className="material-symbols-outlined" style={{ fontSize: '0.75rem', lineHeight: 1 }}>close</span>
+              Clear
+            </button>
+          ) : (
+            <span className="ml-3 text-[10px] text-[#444] flex-shrink-0">All</span>
           )}
         </div>
 

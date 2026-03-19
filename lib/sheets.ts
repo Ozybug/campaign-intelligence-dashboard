@@ -155,7 +155,7 @@ export type SchFormat   = 'One Time' | 'Event Triggered' | 'Recurring';
 export type RecInterval = 'daily' | 'weekly' | 'monthly' | 'custom';
 export type CustomUnit  = 'day' | 'week' | 'month' | 'year';
 export type Stage       = 'schematic' | 'live';
-export type Brand       = 'Zostel' | 'Zo Trips' | 'Zo Selections';
+export type Brand       = 'Zostel Hostel' | 'Zostel Plus' | 'Zostel Homes' | 'Zo Trips' | 'Zo Selections' | 'Experiences';
 export type SchMode     = 'Shell' | 'Curated';
 
 export interface SchematicCampaign {
@@ -198,7 +198,7 @@ function rowToSchematic(row: string[]): SchematicCampaign {
   ] = row;
   return {
     id, title, startDate,
-    brand:   (brand   || 'Zostel')    as Brand,
+    brand:   ((brand === 'Zostel' ? 'Zostel Hostel' : brand) || 'Zostel Hostel') as Brand,
     mode:    (mode    || 'Curated')   as SchMode,
     channel: (channel || 'Email')     as SchChannel,
     format:  (format  || 'One Time')  as SchFormat,
