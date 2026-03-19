@@ -6,7 +6,7 @@ import MiniCalendar from '@/components/MiniCalendar';
 const CampaignCalendar = dynamic(() => import('@/components/CampaignCalendar'), { ssr: false });
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-type Brand          = 'Zostel' | 'Zo Trips' | 'Zo Selections';
+type Brand          = 'Zostel Hostel' | 'Zostel Plus' | 'Zostel Homes' | 'Zo Trips' | 'Zo Selections' | 'Experiences';
 type OsmTarget      = 'Destination' | 'Property' | 'Homepage';
 type RedirectTarget = 'Destination' | 'Property' | 'Homepage' | 'Trip Name' | 'Experience Name';
 type OsmStatus      = 'Ideation' | 'Scheduled' | 'Live' | 'Canned';
@@ -65,9 +65,12 @@ const PRIORITY_CLS: Record<OsmPriority, string> = {
   Low:      'bg-zinc-900/50 text-zinc-500 border-zinc-700',
 };
 const BRAND_COLORS: Record<Brand, string> = {
-  Zostel:          '#818CF8',
-  'Zo Trips':      '#34D399',
-  'Zo Selections': '#F59E0B',
+  'Zostel Hostel':  '#818CF8',
+  'Zostel Plus':    '#C084FC',
+  'Zostel Homes':   '#FB923C',
+  'Zo Trips':       '#34D399',
+  'Zo Selections':  '#F59E0B',
+  'Experiences':    '#F472B6',
 };
 const STATUS_ORDER:   OsmStatus[]   = ['Live', 'Scheduled', 'Ideation', 'Canned'];
 const PRIORITY_ORDER: OsmPriority[] = ['Critical', 'High', 'Medium', 'Normal', 'Low'];
@@ -220,7 +223,7 @@ function FormBody({ f, set, onSubmit, onDelete, isEdit, saving }: {
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Brand <span className="text-rose-400">*</span></p>
           <div className="flex gap-1">
-            {(['Zostel', 'Zo Trips', 'Zo Selections'] as Brand[]).map(b => (
+            {(['Zostel Hostel', 'Zostel Plus', 'Zostel Homes', 'Zo Trips', 'Zo Selections', 'Experiences'] as Brand[]).map(b => (
               <button key={b} type="button" onClick={() => set('brand', b)}
                 className="px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
                 style={f.brand === b
