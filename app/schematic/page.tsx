@@ -8,7 +8,7 @@ import BlackoutDatePicker from '@/components/BlackoutDatePicker';
 const CampaignCalendar = dynamic(() => import('@/components/CampaignCalendar'), { ssr: false });
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type SchChannel  = 'Email' | 'Push';
+type SchChannel  = 'Email' | 'Push' | 'WhatsApp';
 type SchFormat   = 'One Time' | 'Event Triggered' | 'Recurring';
 type RecInterval = 'daily' | 'weekly' | 'monthly' | 'custom';
 type CustomUnit  = 'day' | 'week' | 'month' | 'year';
@@ -38,8 +38,8 @@ interface SchematicCampaign {
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
-const CHANNEL_COLORS: Record<SchChannel, string> = { Email: '#34D399', Push: '#818CF8' };
-const CHANNEL_ICONS:  Record<SchChannel, string> = { Email: 'mail',    Push: 'send_to_mobile' };
+const CHANNEL_COLORS: Record<SchChannel, string> = { Email: '#34D399', Push: '#818CF8', WhatsApp: '#25D366' };
+const CHANNEL_ICONS:  Record<SchChannel, string> = { Email: 'mail',    Push: 'send_to_mobile', WhatsApp: 'whatsapp' };
 const BRAND_COLORS:   Record<Brand, string>      = { Zostel: '#818CF8', 'Zo Trips': '#34D399' };
 const MODE_COLORS:    Record<SchMode, string>    = { Shell: '#94A3B8', Curated: '#34D399' };
 const MODE_ICONS:     Record<SchMode, string>    = { Shell: 'draft',   Curated: 'task_alt' };
@@ -125,32 +125,35 @@ function splitRangeAroundBlackouts(
 
 // ── Expand a campaign to FullCalendar events (skips blackout dates) ────────────
 function expandToEvents(c: SchematicCampaign): any[] {
-  if (c.stage === 'live') return [];
+  // Non-WhatsApp live campaigns disappear from the Schematic calendar
+  if (c.stage === 'live' && c.channel !== 'WhatsApp') return [];
 
-  const blackoutSet  = new Set(c.blackoutDates ?? []);
-  const color        = CHANNEL_COLORS[c.channel];
-  const bgOpacity    = c.mode === 'Shell' ? 0.10 : 0.18;
-  const isIndefinite = c.endDate === null;
-  const horizon      = toDateStr(addYears(new Date(), 1));
-  const effectiveEnd = isIndefinite ? horizon : c.endDate!;
+  const isWhatsAppLive = c.stage === 'live' && c.channel === 'WhatsApp';
+  const blackoutSet    = new Set(c.blackoutDates ?? []);
+  const color          = CHANNEL_COLORS[c.channel];
+  const bgOpacity      = isWhatsAppLive ? 0.06 : (c.mode === 'Shell' ? 0.10 : 0.18);
+  const isIndefinite   = c.endDate === null;
+  const horizon        = toDateStr(addYears(new Date(), 1));
+  const effectiveEnd   = isIndefinite ? horizon : c.endDate!;
 
   const base = {
     backgroundColor: hexToRgba(color, bgOpacity),
-    borderColor:     c.mode === 'Shell' ? hexToRgba(color, 0.5) : color,
-    textColor:       color,
+    borderColor:     isWhatsAppLive ? hexToRgba(color, 0.3) : (c.mode === 'Shell' ? hexToRgba(color, 0.5) : color),
+    textColor:       isWhatsAppLive ? hexToRgba(color, 0.5) : color,
     classNames:      ['schematic-event'],
     extendedProps: {
-      isSchematic:  true,
-      schematicId:  c.id,
-      channel:      c.channel,
-      format:       c.format,
-      icon:         CHANNEL_ICONS[c.channel],
-      indefinite:   isIndefinite,
-      messageTitle: c.messageTitle,
-      subtitle:     c.subtitle,
-      messageBody:  c.messageBody,
-      mode:         c.mode,
-      brand:        c.brand,
+      isSchematic:    true,
+      schematicId:    c.id,
+      channel:        c.channel,
+      format:         c.format,
+      icon:           CHANNEL_ICONS[c.channel],
+      indefinite:     isIndefinite,
+      messageTitle:   c.messageTitle,
+      subtitle:       c.subtitle,
+      messageBody:    c.messageBody,
+      mode:           c.mode,
+      brand:          c.brand,
+      isWhatsAppLive: isWhatsAppLive,
     },
   };
 
@@ -256,7 +259,7 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Channel</p>
           <div className="flex gap-1">
-            {(['Email', 'Push'] as SchChannel[]).map(ch => (
+            {(['Email', 'Push', 'WhatsApp'] as SchChannel[]).map(ch => (
               <button key={ch} type="button" onClick={() => set('channel', ch)}
                 className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
                 style={f.channel === ch
@@ -482,12 +485,16 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
       <div className="border-t border-[#2a2a2a] pt-3 space-y-2">
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
-            {f.channel === 'Push' ? 'Message Title' : 'Email Subject Line'}
+            {f.channel === 'Email' ? 'Email Subject Line' : 'Message Title'}
             {f.mode === 'Curated' && <span className="text-rose-400 ml-0.5">*</span>}
             {f.mode === 'Shell'   && <span className="ml-1.5 text-[#555] font-normal normal-case tracking-normal text-[9px]">optional in Shell</span>}
           </p>
           <input type="text"
-            placeholder={f.channel === 'Push' ? 'e.g. Work in NCR ❌ Workation in NCR ✅' : 'e.g. Your Zostel booking is confirmed 🎉'}
+            placeholder={
+              f.channel === 'Email'    ? 'e.g. Your Zostel booking is confirmed 🎉' :
+              f.channel === 'WhatsApp' ? 'e.g. Hey! Your Zostel workation awaits 🌄' :
+                                         'e.g. Work in NCR ❌ Workation in NCR ✅'
+            }
             value={f.messageTitle} onChange={e => set('messageTitle', e.target.value)}
             required={f.mode === 'Curated'}
             className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors" />
@@ -516,6 +523,14 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
               className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors resize-none" />
           </div>
         )}
+        {f.channel === 'WhatsApp' && (
+          <div>
+            <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Message Body</p>
+            <textarea placeholder="e.g. Book your next workation at Zostel Noida — coworking + coliving 🌄" value={f.messageBody}
+              onChange={e => set('messageBody', e.target.value)} rows={2}
+              className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors resize-none" />
+          </div>
+        )}
       </div>
 
       {/* Row 5: Actions */}
@@ -523,8 +538,10 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         {isEdit && currentStage === 'schematic' && onMarkLive && (
           <button type="button" onClick={onMarkLive}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-800 rounded-lg text-xs font-medium transition-colors">
-            <span className="material-symbols-outlined" style={{ fontSize: '0.85rem', lineHeight: 1 }}>rocket_launch</span>
-            Campaign Live
+            <span className="material-symbols-outlined" style={{ fontSize: '0.85rem', lineHeight: 1 }}>
+              {f.channel === 'WhatsApp' ? 'send' : 'rocket_launch'}
+            </span>
+            {f.channel === 'WhatsApp' ? 'Publish to Dashboard' : 'Campaign Live'}
           </button>
         )}
         {isEdit && currentStage === 'live' && onMarkSchematic && (

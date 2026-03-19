@@ -50,12 +50,54 @@ export default function Home() {
   const [metrics, setMetrics] = useState<CampaignMetrics | null>(null);
   const [collisions, setCollisions] = useState<CollisionWarning[]>([]);
   const [restoreMsg, setRestoreMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [whatsappLiveEvents, setWhatsappLiveEvents] = useState<any[]>([]);
   const uploadRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch('/api/campaigns')
       .then(res => res.json())
       .then(data => setCollisions(data.collisions || []));
+  }, []);
+
+  // Fetch live WhatsApp schematic campaigns and show them on the main calendar
+  useEffect(() => {
+    fetch('/api/schematic')
+      .then(res => res.json())
+      .then(data => {
+        const campaigns: any[] = data.campaigns ?? [];
+        const WA_COLOR = '#25D366';
+        const horizon = (() => {
+          const d = new Date();
+          d.setFullYear(d.getFullYear() + 1);
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        })();
+        const evts = campaigns
+          .filter((c: any) => c.stage === 'live' && c.channel === 'WhatsApp')
+          .map((c: any) => ({
+            id:              `wa_live_${c.id}`,
+            title:           c.title,
+            start:           c.startDate,
+            end:             c.endDate || horizon,
+            backgroundColor: 'rgba(37,211,102,0.15)',
+            borderColor:     WA_COLOR,
+            textColor:       WA_COLOR,
+            classNames:      ['schematic-event'],
+            extendedProps: {
+              isSchematic:  true,
+              schematicId:  c.id,
+              channel:      'WhatsApp',
+              format:       c.format,
+              icon:         'whatsapp',
+              indefinite:   !c.endDate,
+              messageTitle: c.messageTitle,
+              messageBody:  c.messageBody,
+              mode:         c.mode,
+              brand:        c.brand,
+            },
+          }));
+        setWhatsappLiveEvents(evts);
+      })
+      .catch(() => {}); // silently skip if Sheets not configured
   }, []);
 
   useEffect(() => {
@@ -292,7 +334,7 @@ export default function Home() {
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           <div className="xl:col-span-2">
             <h2 className="text-lg font-semibold text-[#E0E0E0] mb-3">Campaign Calendar</h2>
-            <CampaignCalendar onSelect={setSelectedCampaign} collisions={collisions} />
+            <CampaignCalendar onSelect={setSelectedCampaign} collisions={collisions} extraEvents={whatsappLiveEvents} />
           </div>
           <div className="flex flex-col gap-4">
             <div>
