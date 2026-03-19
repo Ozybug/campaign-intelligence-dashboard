@@ -155,7 +155,7 @@ export type SchFormat   = 'One Time' | 'Event Triggered' | 'Recurring';
 export type RecInterval = 'daily' | 'weekly' | 'monthly' | 'custom';
 export type CustomUnit  = 'day' | 'week' | 'month' | 'year';
 export type Stage       = 'schematic' | 'live';
-export type Brand       = 'Zostel' | 'Zo Trips';
+export type Brand       = 'Zostel' | 'Zo Trips' | 'Zo Selections';
 export type SchMode     = 'Shell' | 'Curated';
 
 export interface SchematicCampaign {
