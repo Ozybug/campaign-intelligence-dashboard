@@ -244,27 +244,28 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
   };
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3">
+    <form onSubmit={onSubmit} className="divide-y divide-[#252525]">
 
-      {/* Row 1: Brand · Channel · Title · Format */}
-      <div className="flex flex-wrap gap-3 items-end">
-        <div>
-          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
-            Brand <span className="text-rose-400">*</span>
-          </p>
-          <div className="flex gap-1">
-            {(['Zostel Hostel', 'Zostel Plus', 'Zostel Homes', 'Zo Trips', 'Zo Selections', 'Experiences'] as Brand[]).map(b => (
-              <button key={b} type="button" onClick={() => set('brand', b)}
-                className="px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
-                style={f.brand === b
-                  ? { backgroundColor: hexToRgba(BRAND_COLORS[b], 0.15), borderColor: BRAND_COLORS[b], color: BRAND_COLORS[b] }
-                  : { backgroundColor: '#161616', borderColor: '#333', color: '#888' }}>
-                {b}
-              </button>
-            ))}
-          </div>
+      {/* Brand — 3×2 grid */}
+      <div className="pb-3">
+        <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
+          Brand <span className="text-rose-400">*</span>
+        </p>
+        <div className="flex flex-wrap gap-1">
+          {(['Zostel Hostel', 'Zostel Plus', 'Zostel Homes', 'Zo Trips', 'Zo Selections', 'Experiences'] as Brand[]).map(b => (
+            <button key={b} type="button" onClick={() => set('brand', b)}
+              className="px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
+              style={f.brand === b
+                ? { backgroundColor: hexToRgba(BRAND_COLORS[b], 0.15), borderColor: BRAND_COLORS[b], color: BRAND_COLORS[b] }
+                : { backgroundColor: '#161616', borderColor: '#333', color: '#888' }}>
+              {b}
+            </button>
+          ))}
         </div>
+      </div>
 
+      {/* Channel + Title */}
+      <div className="py-3 flex flex-wrap gap-3 items-end">
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Channel</p>
           <div className="flex gap-1">
@@ -289,55 +290,54 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
             onChange={e => set('title', e.target.value)} required
             className="w-full bg-[#161616] border border-[#333] rounded-lg px-3 py-1.5 text-sm text-[#E0E0E0] placeholder-[#555] outline-none focus:border-[#555] transition-colors" />
         </div>
-
-        <div>
-          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Format</p>
-          <div className="flex gap-1">
-            {(['One Time', 'Event Triggered', 'Recurring'] as SchFormat[]).map(fmt => (
-              <button key={fmt} type="button" onClick={() => set('format', fmt)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                  f.format === fmt ? 'bg-[#1e1e38] text-indigo-300 border-indigo-600' : 'bg-[#161616] text-[#888] border-[#333] hover:text-[#ccc]'
-                }`}>
-                {fmt}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
-      {/* Row 2: Recurring options */}
-      {f.format === 'Recurring' && (
-        <div className="flex flex-wrap gap-2 items-center">
-          <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase">Repeats</p>
-          <div className="flex gap-1">
-            {(['daily', 'weekly', 'monthly', 'custom'] as RecInterval[]).map(iv => (
-              <button key={iv} type="button" onClick={() => set('interval', iv)}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors capitalize ${
-                  f.interval === iv ? 'bg-[#1a1a2e] text-indigo-300 border-indigo-600' : 'bg-[#161616] text-[#888] border-[#333] hover:text-[#ccc]'
-                }`}>
-                {iv}
-              </button>
-            ))}
-          </div>
-          {f.interval === 'custom' && (
-            <div className="flex items-center gap-1.5 ml-1">
-              <span className="text-[#888] text-xs">every</span>
-              <input type="number" min={1} value={f.customValue}
-                onChange={e => set('customValue', Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-14 bg-[#161616] border border-[#333] rounded-lg px-2 py-1 text-sm text-[#E0E0E0] outline-none focus:border-[#555] text-center" />
-              <select value={f.customUnit} onChange={e => set('customUnit', e.target.value as CustomUnit)}
-                className="bg-[#161616] border border-[#333] rounded-lg px-2 py-1 text-xs text-[#E0E0E0] outline-none focus:border-[#555] cursor-pointer">
-                {(['day', 'week', 'month', 'year'] as CustomUnit[]).map(u => (
-                  <option key={u} value={u}>{u}s</option>
-                ))}
-              </select>
-            </div>
-          )}
+      {/* Format + Recurring options */}
+      <div className="py-3">
+        <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">Format</p>
+        <div className="flex gap-1">
+          {(['One Time', 'Event Triggered', 'Recurring'] as SchFormat[]).map(fmt => (
+            <button key={fmt} type="button" onClick={() => set('format', fmt)}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                f.format === fmt ? 'bg-[#1e1e38] text-indigo-300 border-indigo-600' : 'bg-[#161616] text-[#888] border-[#333] hover:text-[#ccc]'
+              }`}>
+              {fmt}
+            </button>
+          ))}
         </div>
-      )}
+        {f.format === 'Recurring' && (
+          <div className="flex flex-wrap gap-2 items-center mt-2">
+            <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase">Repeats</p>
+            <div className="flex gap-1">
+              {(['daily', 'weekly', 'monthly', 'custom'] as RecInterval[]).map(iv => (
+                <button key={iv} type="button" onClick={() => set('interval', iv)}
+                  className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors capitalize ${
+                    f.interval === iv ? 'bg-[#1a1a2e] text-indigo-300 border-indigo-600' : 'bg-[#161616] text-[#888] border-[#333] hover:text-[#ccc]'
+                  }`}>
+                  {iv}
+                </button>
+              ))}
+            </div>
+            {f.interval === 'custom' && (
+              <div className="flex items-center gap-1.5 ml-1">
+                <span className="text-[#888] text-xs">every</span>
+                <input type="number" min={1} value={f.customValue}
+                  onChange={e => set('customValue', Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-14 bg-[#161616] border border-[#333] rounded-lg px-2 py-1 text-sm text-[#E0E0E0] outline-none focus:border-[#555] text-center" />
+                <select value={f.customUnit} onChange={e => set('customUnit', e.target.value as CustomUnit)}
+                  className="bg-[#161616] border border-[#333] rounded-lg px-2 py-1 text-xs text-[#E0E0E0] outline-none focus:border-[#555] cursor-pointer">
+                  {(['day', 'week', 'month', 'year'] as CustomUnit[]).map(u => (
+                    <option key={u} value={u}>{u}s</option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
-      {/* Row 3: Dates · Mode */}
-      <div className="flex flex-wrap gap-3 items-end">
+      {/* Dates + Mode */}
+      <div className="py-3 flex flex-wrap gap-3 items-end">
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
             Start Date <span className="text-rose-400">*</span>
@@ -360,7 +360,7 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
           </div>
         )}
 
-        {/* Mode toggle — blank space on the right */}
+        {/* Mode toggle */}
         <div className="ml-auto">
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
             Mode <span className="text-rose-400">*</span>
@@ -385,8 +385,8 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         </div>
       </div>
 
-      {/* Row 3.5: Blackout Dates + Scheduled Occurrences — aligned, both collapsible */}
-      <div className="border-t border-[#2a2a2a] pt-3">
+      {/* Blackout Dates + Scheduled Occurrences */}
+      <div className="py-3">
         <div className="flex flex-wrap gap-6 items-start">
 
           {/* ── BLACKOUT DATES ── */}
@@ -490,8 +490,8 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         </div>
       </div>
 
-      {/* Row 4: Message content */}
-      <div className="border-t border-[#2a2a2a] pt-3 space-y-2">
+      {/* Message content */}
+      <div className="py-3 space-y-2">
         <div>
           <p className="text-[10px] font-semibold text-[#888] tracking-wider uppercase mb-1.5">
             {f.channel === 'Email' ? 'Email Subject Line' : 'Message Title'}
@@ -542,8 +542,8 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
         )}
       </div>
 
-      {/* Row 5: Actions */}
-      <div className="flex flex-wrap gap-2 pt-1 border-t border-[#2a2a2a]">
+      {/* Actions */}
+      <div className="pt-3 flex flex-wrap gap-2">
         {isEdit && currentStage === 'schematic' && onMarkLive && (
           <button type="button" onClick={onMarkLive}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-800 rounded-lg text-xs font-medium transition-colors">
