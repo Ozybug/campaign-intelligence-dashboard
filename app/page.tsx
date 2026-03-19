@@ -8,6 +8,13 @@ import { CalendarEvent, CampaignMetrics, CollisionWarning } from '@/types/campai
 
 const CampaignCalendar = dynamic(() => import('@/components/CampaignCalendar'), { ssr: false });
 
+/** Alpha-composite hex over #1e1e1e — opaque color that looks identical to rgba(hex,alpha) on the dark calendar bg */
+const blendHex = (hex: string, alpha: number, bgHex = '#1e1e1e') => {
+  const px = (h: string, i: number) => parseInt(h.slice(i, i + 2), 16);
+  const mix = (f: number, b: number) => Math.round(f * alpha + b * (1 - alpha));
+  return `rgb(${mix(px(hex,1),px(bgHex,1))},${mix(px(hex,3),px(bgHex,3))},${mix(px(hex,5),px(bgHex,5))})`;
+};
+
 // ── CSV helpers ──────────────────────────────────────────────────────────────
 
 function escapeCSV(val: unknown): string {
@@ -78,7 +85,7 @@ export default function Home() {
             title:           c.title,
             start:           c.startDate,
             end:             c.endDate || horizon,
-            backgroundColor: 'rgba(37,211,102,0.30)',
+            backgroundColor: blendHex(WA_COLOR, 0.30),
             borderColor:     WA_COLOR,
             textColor:       WA_COLOR,
             classNames:      ['schematic-event'],
