@@ -13,7 +13,7 @@ type SchFormat   = 'One Time' | 'Event Triggered' | 'Recurring';
 type RecInterval = 'daily' | 'weekly' | 'monthly' | 'custom';
 type CustomUnit  = 'day' | 'week' | 'month' | 'year';
 type Stage       = 'schematic' | 'live';
-type Brand       = 'Zostel' | 'Zo Trips';
+type Brand       = 'Zostel' | 'Zo Trips' | 'Zo Selections';
 type SchMode     = 'Shell' | 'Curated';
 
 interface SchematicCampaign {
@@ -39,8 +39,8 @@ interface SchematicCampaign {
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const CHANNEL_COLORS: Record<SchChannel, string> = { Email: '#34D399', Push: '#818CF8', WhatsApp: '#25D366' };
-const CHANNEL_ICONS:  Record<SchChannel, string> = { Email: 'mail',    Push: 'send_to_mobile', WhatsApp: 'whatsapp' };
-const BRAND_COLORS:   Record<Brand, string>      = { Zostel: '#818CF8', 'Zo Trips': '#34D399' };
+const CHANNEL_ICONS:  Record<SchChannel, string> = { Email: 'mail',    Push: 'send_to_mobile', WhatsApp: 'mobile_chat' };
+const BRAND_COLORS:   Record<Brand, string>      = { Zostel: '#818CF8', 'Zo Trips': '#34D399', 'Zo Selections': '#F59E0B' };
 const MODE_COLORS:    Record<SchMode, string>    = { Shell: '#94A3B8', Curated: '#34D399' };
 const MODE_ICONS:     Record<SchMode, string>    = { Shell: 'draft',   Curated: 'task_alt' };
 // LS_KEY kept for one-time migration only — primary storage is now Google Sheets
@@ -244,7 +244,7 @@ function FormBody({ f, set, onSubmit, onDelete, onMarkLive, onMarkSchematic, cur
             Brand <span className="text-rose-400">*</span>
           </p>
           <div className="flex gap-1">
-            {(['Zostel', 'Zo Trips'] as Brand[]).map(b => (
+            {(['Zostel', 'Zo Trips', 'Zo Selections'] as Brand[]).map(b => (
               <button key={b} type="button" onClick={() => set('brand', b)}
                 className="px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
                 style={f.brand === b

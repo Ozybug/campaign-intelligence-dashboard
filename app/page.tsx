@@ -87,7 +87,7 @@ export default function Home() {
               schematicId:  c.id,
               channel:      'WhatsApp',
               format:       c.format,
-              icon:         'whatsapp',
+              icon:         'mobile_chat',
               indefinite:   !c.endDate,
               messageTitle: c.messageTitle,
               messageBody:  c.messageBody,
