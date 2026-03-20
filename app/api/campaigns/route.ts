@@ -41,9 +41,12 @@ function nextUTCDay(isoStr: string): string {
 
 export async function GET() {
   try {
-    const campaigns = await fetchMoEngageCampaigns()
+    const allCampaigns = await fetchMoEngageCampaigns()
+    const isMock = allCampaigns.length > 0 && allCampaigns[0].id.startsWith('mock_')
+
+    // On-site campaigns belong exclusively to the On-Site Litematica page (/onsite)
+    const campaigns = allCampaigns.filter((c) => c.channel !== 'On-site')
     const collisions = detectCollisions(campaigns)
-    const isMock = campaigns.length > 0 && campaigns[0].id.startsWith('mock_')
 
     const events = campaigns.map((c) => {
       const startDate = normalizeDate(c.startDate)

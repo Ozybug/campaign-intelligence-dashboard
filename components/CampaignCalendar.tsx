@@ -20,8 +20,9 @@ interface Props {
   blackoutDates?: string[];
 }
 
-// Channels excluded from the filter UI (not relevant for current campaigns)
-const EXCLUDED_CHANNELS = new Set<string>(['MMS', 'WhatsApp', 'Web', 'Facebook', 'Google Ads', 'Custom']);
+// Channels excluded from the filter UI on the main dashboard.
+// 'On-site' is handled exclusively by the On-Site Litematica page (/onsite).
+const EXCLUDED_CHANNELS = new Set<string>(['On-site', 'MMS', 'WhatsApp', 'Web', 'Facebook', 'Google Ads', 'Custom']);
 
 const STAT_ITEMS = [
   { key: 'total',    label: 'Total Campaigns', icon: 'calendar_month',      iconClass: 'text-[#888888]'   },
