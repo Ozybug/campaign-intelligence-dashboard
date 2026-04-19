@@ -617,7 +617,7 @@ export default function OnsitePage() {
                 collisions={[]}
                 hideFilters
                 blankCalendar
-                extraEvents={extraEvents}
+                extraEvents={[]}
                 onExtraEventClick={openEdit}
               />
             </div>
