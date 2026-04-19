@@ -7,10 +7,9 @@ const MOENGAGE_SECRET_KEY = process.env.MOENGAGE_SECRET_KEY || '';
 const MOENGAGE_BASE_URL = process.env.MOENGAGE_BASE_URL  || 'https://api-03.moengage.com';
 
 // Channels to try via the campaigns/search API.
-// ONSITE (no underscore) returns 400 "channels is invalid passed value".
-// ON_SITE (with underscore) is attempted first; if it also returns 400 the
-// error is swallowed and we fall through to the Stats-API OSM discovery path.
-const SEARCH_API_CHANNELS = ['PUSH', 'EMAIL', 'ON_SITE'];
+// ON_SITE is intentionally excluded — on-site campaigns are managed exclusively
+// on the On-Site Litematica page (/onsite) via Google Sheets, not shown here.
+const SEARCH_API_CHANNELS = ['PUSH', 'EMAIL'];
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 function getAuthHeader(): string {
@@ -389,11 +388,11 @@ export async function fetchMoEngageCampaigns(): Promise<Campaign[]> {
   console.log('[MoEngage] Fetching campaigns from API...');
 
   try {
-        // Run search-API channels (Push, Email) and Stats-API OSM discovery in parallel
-      const [searchResults, osmCampaigns] = await Promise.all([
-              Promise.allSettled(SEARCH_API_CHANNELS.map(ch => fetchCampaignsByChannel(ch))),
-              fetchOnsiteCampaignsViaStatsApi(),
-            ]);
+        // Fetch search-API channels (Push, Email).
+        // On-site (OSM) is excluded — it lives exclusively on the On-Site Litematica page.
+      const searchResults = await Promise.allSettled(
+        SEARCH_API_CHANNELS.map(ch => fetchCampaignsByChannel(ch))
+      );
 
       const allCampaigns: Campaign[] = [];
 
@@ -401,14 +400,12 @@ export async function fetchMoEngageCampaigns(): Promise<Campaign[]> {
               if (result.status === 'fulfilled') allCampaigns.push(...result.value);
       }
 
-      allCampaigns.push(...osmCampaigns);
-
       if (allCampaigns.length === 0) {
               console.warn('[MoEngage] No campaigns returned, falling back to mock');
               return getMockCampaigns();
       }
 
-      console.log(`[MoEngage] Total campaigns: ${allCampaigns.length} (${osmCampaigns.length} OSM)`);
+      console.log(`[MoEngage] Total campaigns: ${allCampaigns.length}`);
         return allCampaigns;
 
   } catch (error) {
